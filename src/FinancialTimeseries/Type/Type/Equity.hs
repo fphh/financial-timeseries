@@ -10,4 +10,4 @@ newtype Equity a = Equity {
 
 
 instance Pretty a => Pretty (Equity a) where
-  pretty (Equity a) = "Yield:\n" ++ pretty a
+  pretty (Equity a) = "Equity:\n" ++ pretty a
