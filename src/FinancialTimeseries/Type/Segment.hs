@@ -3,7 +3,7 @@
 
 module FinancialTimeseries.Type.Segment where
 
-import FinancialTimeseries.Type.Invested (Invested(..), NotInvested(..))
+import FinancialTimeseries.Type.Type.Invested (Invested(..), NotInvested(..))
 
 data Segment = Segment {
   from :: !Int

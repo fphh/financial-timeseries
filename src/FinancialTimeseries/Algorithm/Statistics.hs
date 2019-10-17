@@ -15,9 +15,9 @@ import qualified Formatting as F
 import qualified Formatting.Time as FT
 
 
-import FinancialTimeseries.Type.Invested (Invested, NotInvested(..))
-import FinancialTimeseries.Type.Profit (Long, Short)
-import FinancialTimeseries.Type.Util (biliftA, biliftA2)
+import FinancialTimeseries.Type.Type.Invested (Invested, NotInvested(..))
+import FinancialTimeseries.Type.Evaluate (Long, Short)
+import FinancialTimeseries.Util.Util (biliftA, biliftA2)
 
 
 

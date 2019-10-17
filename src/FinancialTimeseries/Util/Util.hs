@@ -1,6 +1,6 @@
 
 
-module FinancialTimeseries.Type.Util where
+module FinancialTimeseries.Util.Util where
 
 
 biliftA :: (a -> c) -> (b -> d) -> (a, b) -> (c, d)

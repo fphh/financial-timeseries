@@ -36,9 +36,10 @@ import Graphics.Svg.Core (renderBS)
 
 
 import FinancialTimeseries.Render.Css ((!))
-import FinancialTimeseries.Type.Profit (Long(..))
+import FinancialTimeseries.Type.Evaluate (Long(..))
 import FinancialTimeseries.Type.Segment (Segment(..))
 import FinancialTimeseries.Type.Timeseries (Timeseries(..))
+import FinancialTimeseries.Type.Type.Equity (Equity(..))
 
 
 data Config = Config {
@@ -85,7 +86,9 @@ renderChart vs = do
     $ R.toRenderable $ do
     mapM_ (\(title, xs) -> E.plot (E.line title xs)) vs
 
-renderHelper :: (E.PlotValue a, Fractional a) => Vector (UTCTime, a) -> [Timeseries a] -> HtmlReader Html
+renderHelper ::
+  (E.PlotValue a, Fractional a) =>
+  Equity (Vector (UTCTime, a)) -> [Timeseries a] -> HtmlReader Html
 renderHelper res vs =
   let f (Timeseries nam ts segs as) =
         let (_, mi) = Vec.minimumBy (compare `on` snd) ts
@@ -100,19 +103,19 @@ renderHelper res vs =
         in [(nam, [Vec.toList ts]), (nam ++ " (inv. / not inv.)", map g segs)]
            ++ map (fmap ((:[]) . Vec.toList)) as
                   
-  in renderChart (concatMap f vs ++ [("Equity", [Vec.toList res])])
+  in renderChart (concatMap f vs ++ [("$$$", [Vec.toList (unEquity res)])])
 
 
 render2 ::
   (E.PlotValue a, Fractional a) =>
-  Vector (UTCTime, a) -> [Timeseries a] -> Config -> Html
+  Equity (Vector (UTCTime, a)) -> [Timeseries a] -> Config -> Html
 render2 res vs config = join (runReaderT (renderHelper res vs) config)
 
 
 class Render longOrShort where
   render ::
     (E.PlotValue a, Fractional a) =>
-    longOrShort (Vector (UTCTime, a)) -> [Timeseries a] -> Config -> Html
+    longOrShort (Equity (Vector (UTCTime, a))) -> [Timeseries a] -> Config -> Html
 
 instance Render Long where
   render (Long res) vs config = do

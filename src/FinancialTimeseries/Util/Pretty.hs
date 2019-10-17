@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 
-module FinancialTimeseries.Type.Pretty where
+module FinancialTimeseries.Util.Pretty where
 
 import Data.Time (UTCTime)
 

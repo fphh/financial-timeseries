@@ -16,19 +16,22 @@ extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules: FinancialTimeseries.Algorithm.MovingAverage
+  exposed-modules:   FinancialTimeseries.Algorithm.MovingAverage
                    , FinancialTimeseries.Algorithm.Statistics
                    , FinancialTimeseries.Render.Chart
                    , FinancialTimeseries.Render.Css
                    , FinancialTimeseries.Render.Table
                    , FinancialTimeseries.Source.Alphavantage                   
                    , FinancialTimeseries.Test
-                   , FinancialTimeseries.Type.Invested
-                   , FinancialTimeseries.Type.Pretty
-                   , FinancialTimeseries.Type.Profit
+                   , FinancialTimeseries.Type.Evaluate
                    , FinancialTimeseries.Type.Segment
                    , FinancialTimeseries.Type.Timeseries
-                   , FinancialTimeseries.Type.Util
+                   , FinancialTimeseries.Type.Type.Equity
+                   , FinancialTimeseries.Type.Type.Invested
+                   , FinancialTimeseries.Type.Type.Yield
+                   , FinancialTimeseries.Util.Pretty
+                   , FinancialTimeseries.Util.Util
+                  
 
 
   -- other-extensions:

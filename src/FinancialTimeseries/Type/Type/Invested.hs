@@ -1,12 +1,14 @@
 {-# LANGUAGE DeriveFunctor #-}
 
 
-module FinancialTimeseries.Type.Invested where
+module FinancialTimeseries.Type.Type.Invested where
 
 import Data.Either (partitionEithers)
 
-import FinancialTimeseries.Type.Pretty (Pretty, pretty)
-import FinancialTimeseries.Type.Util (biliftA)
+import FinancialTimeseries.Type.Type.Yield (Yield (..))
+import FinancialTimeseries.Type.Type.Equity (Equity (..))
+import FinancialTimeseries.Util.Pretty (Pretty, pretty)
+import FinancialTimeseries.Util.Util (biliftA)
 
 
 newtype Invested a = Invested {
@@ -35,3 +37,15 @@ invested = snd . partitionInvested
 
 notInvested :: [Either (NotInvested a) (Invested a)] -> NotInvested [a]
 notInvested = fst . partitionInvested
+
+swapYieldInvested ::
+  Yield (NotInvested a, Invested a)
+  -> (NotInvested (Yield a), Invested (Yield a))
+swapYieldInvested (Yield (NotInvested x, Invested y)) =
+  (NotInvested (Yield x), Invested (Yield y))
+
+swapInvestedEquity ::
+  (NotInvested (Equity a), Invested (Equity a))
+  -> Equity (NotInvested a, Invested a)
+swapInvestedEquity (NotInvested (Equity x), Invested (Equity y)) =
+  Equity (NotInvested x, Invested y)

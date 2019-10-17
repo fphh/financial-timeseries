@@ -14,9 +14,10 @@ import qualified Data.List as List
 
 import FinancialTimeseries.Algorithm.MovingAverage (Window(..), movingAverage)
 
-import FinancialTimeseries.Type.Invested (Invested(..), NotInvested(..), partitionInvested)
-
-import FinancialTimeseries.Type.Profit (Long(..), long, evaluateInvested)
+import FinancialTimeseries.Type.Type.Invested (Invested(..), NotInvested(..), partitionInvested)
+import FinancialTimeseries.Type.Type.Equity (Equity(..))
+import FinancialTimeseries.Type.Type.Yield (Yield(..))
+import FinancialTimeseries.Type.Evaluate (Long(..), long, evaluateInvested)
 import FinancialTimeseries.Type.Segment (segments, Segment(..))
 import FinancialTimeseries.Type.Timeseries (Timeseries(..), slice)
 
@@ -152,7 +153,7 @@ prop_evaluate :: TS -> Bool
 prop_evaluate (TS ts) =
   let start = 100
       slc = partitionInvested (slice ts)
-      Long (Invested res) = evaluateInvested start (long slc)
+      Long (Equity (Invested res)) = evaluateInvested (Equity start) (long slc)
       f v = snd (Vec.last v) / snd (Vec.head v)
       Invested inv = snd slc
       res2 = start * product (map f inv)

@@ -17,9 +17,10 @@ import qualified Data.List as List
 
 import Text.Printf (PrintfArg, printf)
 
-import FinancialTimeseries.Type.Invested (NotInvested, Invested)
-import FinancialTimeseries.Type.Pretty (Pretty, pretty)
+import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 import FinancialTimeseries.Type.Segment (Segment(..), segments)
+import FinancialTimeseries.Type.Type.Invested (NotInvested, Invested)
+
 
 
 data Timeseries a = Timeseries {
