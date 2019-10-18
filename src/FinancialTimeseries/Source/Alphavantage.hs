@@ -23,6 +23,9 @@ import Data.Aeson (Value)
 import qualified Network.HTTP.Simple as Simple
 
 
+import FinancialTimeseries.Type.Types (Price(..))
+
+
 url :: String -> String -> Simple.Request
 url symbol apikey = Simple.parseRequest_ $
   "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=" ++ symbol
@@ -30,25 +33,21 @@ url symbol apikey = Simple.parseRequest_ $
 
 
 
-newtype Price = Price {
-  unPrice :: Double
-  } deriving (Show, Eq, Ord)
-
 newtype Volume = Volume {
   unVolume :: Integer
   } deriving (Show)
 
 data Row = Row {
-  open :: Price
-  , high :: Price
-  , low :: Price
-  , close :: Price
+  open :: Price Double
+  , high :: Price Double
+  , low :: Price Double
+  , close :: Price Double
   , volume :: Volume
   } deriving (Show)
   
 
-newtype Extract = Extract {
-  unExtract :: Row -> Price
+newtype Extract a = Extract {
+  unExtract :: Row -> Price a
   }
 
 data DataSet a = DataSet {
@@ -62,7 +61,7 @@ data DataSet a = DataSet {
 
 
 
-toDataSet :: Extract -> Value -> Maybe (DataSet (Vector (UTCTime, Price)))
+toDataSet :: Extract a -> Value -> Maybe (DataSet (Vector (UTCTime, Price a)))
 toDataSet (Extract extract) (Ae.Object val) =
   let fromString (Ae.String txt) = Just txt
       fromString _ = Nothing
