@@ -24,11 +24,10 @@ library
                    , FinancialTimeseries.Source.Alphavantage                   
                    , FinancialTimeseries.Test
                    , FinancialTimeseries.Type.Evaluate
+                   , FinancialTimeseries.Type.Invested
                    , FinancialTimeseries.Type.Segment
                    , FinancialTimeseries.Type.Timeseries
-                   , FinancialTimeseries.Type.Type.Equity
-                   , FinancialTimeseries.Type.Type.Invested
-                   , FinancialTimeseries.Type.Type.Yield
+                   , FinancialTimeseries.Type.Types
                    , FinancialTimeseries.Util.Pretty
                    , FinancialTimeseries.Util.Util
                   

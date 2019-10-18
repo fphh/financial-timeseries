@@ -39,7 +39,7 @@ import FinancialTimeseries.Render.Css ((!))
 import FinancialTimeseries.Type.Evaluate (Long(..))
 import FinancialTimeseries.Type.Segment (Segment(..))
 import FinancialTimeseries.Type.Timeseries (Timeseries(..))
-import FinancialTimeseries.Type.Type.Equity (Equity(..))
+import FinancialTimeseries.Type.Types (Equity(..))
 
 
 data Config = Config {

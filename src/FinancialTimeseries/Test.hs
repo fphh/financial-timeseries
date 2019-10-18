@@ -14,9 +14,8 @@ import qualified Data.List as List
 
 import FinancialTimeseries.Algorithm.MovingAverage (Window(..), movingAverage)
 
-import FinancialTimeseries.Type.Type.Invested (Invested(..), NotInvested(..), partitionInvested)
-import FinancialTimeseries.Type.Type.Equity (Equity(..))
-import FinancialTimeseries.Type.Type.Yield (Yield(..))
+import FinancialTimeseries.Type.Invested (Invested(..), NotInvested(..), partitionInvested)
+import FinancialTimeseries.Type.Types (Equity(..), Yield(..))
 import FinancialTimeseries.Type.Evaluate (Long(..), long, evaluateInvested)
 import FinancialTimeseries.Type.Segment (segments, Segment(..))
 import FinancialTimeseries.Type.Timeseries (Timeseries(..), slice)

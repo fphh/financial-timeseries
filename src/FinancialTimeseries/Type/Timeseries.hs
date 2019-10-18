@@ -19,7 +19,7 @@ import Text.Printf (PrintfArg, printf)
 
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 import FinancialTimeseries.Type.Segment (Segment(..), segments)
-import FinancialTimeseries.Type.Type.Invested (NotInvested, Invested)
+import FinancialTimeseries.Type.Invested (NotInvested, Invested)
 
 
 

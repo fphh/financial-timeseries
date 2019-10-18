@@ -10,9 +10,8 @@ import qualified Data.Vector as Vec
 import Data.Vector (Vector)
 
 
-import FinancialTimeseries.Type.Type.Invested (Invested(..), NotInvested(..), swapYieldInvested, swapInvestedEquity)
-import FinancialTimeseries.Type.Type.Equity (Equity(..))
-import FinancialTimeseries.Type.Type.Yield (Yield(..))
+import FinancialTimeseries.Type.Invested (Invested(..), NotInvested(..))
+import FinancialTimeseries.Type.Types(Equity(..), Yield(..), swapYieldInvested, swapInvestedEquity)
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 import FinancialTimeseries.Util.Util (biliftA)
 
