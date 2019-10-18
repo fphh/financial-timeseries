@@ -22,13 +22,13 @@ import Data.Aeson (Value)
 
 import qualified Network.HTTP.Simple as Simple
 
-
+import FinancialTimeseries.Type.Timeseries (Timeseries(..))
 import FinancialTimeseries.Type.Types (Price(..))
 
 
 url :: String -> String -> Simple.Request
-url symbol apikey = Simple.parseRequest_ $
-  "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=" ++ symbol
+url sym apikey = Simple.parseRequest_ $
+  "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=" ++ sym
   ++ "&outputsize=full&datatype=json&apikey=" ++ apikey
 
 
@@ -56,7 +56,7 @@ data DataSet a = DataSet {
   , lastRefreshed :: UTCTime
   , outputSize :: Text
   , timeZone :: Text
-  , timeseries :: a
+  , timeseriesDS :: a
   } deriving (Show)
 
 
@@ -114,13 +114,22 @@ toDataSet (Extract extract) (Ae.Object val) =
       , outputSize = os
       , lastRefreshed = lr
       , timeZone = tz
-      , timeseries = ts
+      , timeseriesDS = ts
       }
 toDataSet _ _ = Nothing
 
 
+dataSet2timeseries :: DataSet (Vector (UTCTime, Price a)) -> Timeseries a
+dataSet2timeseries ds = Timeseries {
+  name = Text.unpack (symbol ds)
+  , timeseries = Price (Vec.map (fmap unPrice) (timeseriesDS ds))
+  , investedSegments = []
+  , additionalSeries = []
+  }
 
-getSymbol :: String -> String -> IO (Maybe (Vector (UTCTime, Double)))
-getSymbol symbol apikey = do
-  response <- Simple.httpJSON (url symbol apikey)
-  return (fmap (Vec.map (fmap unPrice) . timeseries) (toDataSet (Extract close) (Simple.getResponseBody response)))
+
+getSymbol :: String -> String -> IO (Maybe (Timeseries Double))
+getSymbol sym apikey = do
+  response <- Simple.httpJSON (url sym apikey)
+  let ds = toDataSet (Extract close) (Simple.getResponseBody response)
+  return (fmap dataSet2timeseries ds)

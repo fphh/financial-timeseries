@@ -39,7 +39,7 @@ import FinancialTimeseries.Render.Css ((!))
 import FinancialTimeseries.Type.Evaluate (Long(..))
 import FinancialTimeseries.Type.Segment (Segment(..))
 import FinancialTimeseries.Type.Timeseries (Timeseries(..))
-import FinancialTimeseries.Type.Types (Equity(..))
+import FinancialTimeseries.Type.Types (Equity(..), Price(..))
 
 
 data Config = Config {
@@ -90,7 +90,7 @@ renderHelper ::
   (E.PlotValue a, Fractional a) =>
   Equity (Vector (UTCTime, a)) -> [Timeseries a] -> HtmlReader Html
 renderHelper res vs =
-  let f (Timeseries nam ts segs as) =
+  let f (Timeseries nam (Price ts) segs as) =
         let (_, mi) = Vec.minimumBy (compare `on` snd) ts
             (_, ma) = Vec.maximumBy (compare `on` snd) ts
             m = mi + (ma - mi) * 0.8
@@ -101,9 +101,9 @@ renderHelper res vs =
                   (tn, _) = ts Vec.! b
               in [(t0,spikeLow), (t0, spikeHigh), (t0, m), (tn, m), (tn, spikeLow), (tn, spikeHigh)]
         in [(nam, [Vec.toList ts]), (nam ++ " (inv. / not inv.)", map g segs)]
-           ++ map (fmap ((:[]) . Vec.toList)) as
+           ++ map (fmap ((:[]) . Vec.toList . unPrice)) as
                   
-  in renderChart (concatMap f vs ++ [("$$$", [Vec.toList (unEquity res)])])
+  in renderChart (concatMap f vs ++ [("Equity", [Vec.toList (unEquity res)])])
 
 
 render2 ::

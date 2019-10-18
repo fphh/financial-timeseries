@@ -20,11 +20,11 @@ library
                    , FinancialTimeseries.Algorithm.Statistics
                    , FinancialTimeseries.Render.Chart
                    , FinancialTimeseries.Render.Css
+                   , FinancialTimeseries.Render.Statement
                    , FinancialTimeseries.Render.Table
                    , FinancialTimeseries.Source.Alphavantage                   
                    , FinancialTimeseries.Test
                    , FinancialTimeseries.Type.Evaluate
-                   , FinancialTimeseries.Type.Invested
                    , FinancialTimeseries.Type.Segment
                    , FinancialTimeseries.Type.Timeseries
                    , FinancialTimeseries.Type.Types

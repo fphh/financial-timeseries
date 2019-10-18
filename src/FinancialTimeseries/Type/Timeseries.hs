@@ -17,17 +17,17 @@ import qualified Data.List as List
 
 import Text.Printf (PrintfArg, printf)
 
-import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 import FinancialTimeseries.Type.Segment (Segment(..), segments)
-import FinancialTimeseries.Type.Invested (NotInvested, Invested)
+import FinancialTimeseries.Type.Types (NotInvested, Invested, Price(..))
+import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
 
 
 data Timeseries a = Timeseries {
   name :: String
-  , timeseries :: Vector (UTCTime, a)
+  , timeseries :: Price (Vector (UTCTime, a))
   , investedSegments :: [Segment]
-  , additionalSeries :: [(String, Vector (UTCTime, a))]
+  , additionalSeries :: [(String, Price (Vector (UTCTime, a)))] -- [(String, Vector (UTCTime, a))]
   } deriving (Show)
 
 
@@ -49,7 +49,7 @@ timeline is v vs =
 
 instance (Show a, Ord a, PrintfArg a) => Pretty (Timeseries a) where
   pretty (Timeseries n as ss vs) =
-    let tl = timeline ss as (map snd vs)
+    let tl = timeline ss (unPrice as) (map (unPrice . snd) vs)
     in n ++ "\n" ++ (map (const '-') n) ++ "\n" ++ List.intercalate "\n" tl
 
     
@@ -67,11 +67,11 @@ instance (Show a, Ord a, PrintfArg a) => Pretty (Timeseries a) where
     in n ++ "\n" ++ (map (const '-') n) ++ "\n" ++ Vec.ifoldr' f "" as
 -}
 
-slice :: Timeseries a -> [Either (NotInvested (Vector (UTCTime, a))) (Invested (Vector (UTCTime, a)))]
-slice (Timeseries _ as is _) =
+slice :: Timeseries a -> Price [(Either (NotInvested (Vector (UTCTime, a))) (Invested (Vector (UTCTime, a))))]
+slice (Timeseries _ (Price as) is _) =
   let ss = segments is
       f (Segment a b) = Vec.slice a (b-a+1) as
-  in map (bimap (fmap f) (fmap f)) ss
+  in Price (map (bimap (fmap f) (fmap f)) ss)
 
 
 timeseriesTest :: Timeseries Double
@@ -79,7 +79,7 @@ timeseriesTest =
   let Just d = parseTimeM True defaultTimeLocale "%Y-%-m-%-d" "2010-3-04" :: Maybe UTCTime
   in Timeseries {
     name = "timeseriesTest"
-    , timeseries = Vec.generate 40 (\i -> (realToFrac i `addUTCTime` d, 2 + sin (0.5*fromIntegral i)))
+    , timeseries = Price (Vec.generate 40 (\i -> (realToFrac i `addUTCTime` d, 2 + sin (0.5*fromIntegral i))))
     -- timeseries = Vec.generate 12 (\i -> (realToFrac i `addUTCTime` d, 2 + fromIntegral i))
 
     , investedSegments = [Segment 2 3, Segment 7 9]

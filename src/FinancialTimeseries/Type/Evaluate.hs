@@ -10,21 +10,20 @@ import qualified Data.Vector as Vec
 import Data.Vector (Vector)
 
 
-import FinancialTimeseries.Type.Invested (Invested(..), NotInvested(..))
-import FinancialTimeseries.Type.Types(Equity(..), Yield(..), swapYieldInvested, swapInvestedEquity)
+import FinancialTimeseries.Type.Types(Invested(..), NotInvested(..), Equity(..), Yield(..), Price(..), swapYieldInvested, swapInvestedEquity)
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 import FinancialTimeseries.Util.Util (biliftA)
 
 profit ::
   (Fractional a) =>
   (a -> a -> a)
-  -> (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
+  -> Price (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
   -> Yield (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
 profit p =
   let f v =
         let (_, x0) = Vec.head v
         in Vec.map (fmap (p x0)) v
-  in Yield . biliftA (fmap (map f)) (fmap (map f))
+  in Yield . biliftA (fmap (map f)) (fmap (map f)) . unPrice
 
 
 
@@ -38,9 +37,9 @@ instance Pretty a => Pretty (Long a) where
 
 long ::
   (Fractional a)
-  => (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
+  => Price (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
   -> Long (Yield (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)]))
-long xs = Long (profit (\x0 xn -> xn/x0) xs)
+long = Long . profit (\x0 xn -> xn/x0)
 
 
 newtype Short a = Short {
@@ -52,9 +51,9 @@ instance Pretty a => Pretty (Short a) where
 
 short ::
   (Fractional a)
-  => (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
+  => Price (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
   -> Short (Yield (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)]))
-short xs = Short (profit (\x0 xn -> (x0-xn)/x0) xs)
+short = Short . profit (\x0 xn -> (x0-xn)/x0)
 
 
 longEvaluate :: (Num a) => Equity a -> Yield [Vector (t, a)] -> Equity (Vector (t, a))
