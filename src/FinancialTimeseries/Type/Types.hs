@@ -1,13 +1,9 @@
 {-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 
 module FinancialTimeseries.Type.Types where
 
 import Data.Either (partitionEithers)
-
-import Text.Printf (PrintfArg)
-
-import qualified Graphics.Rendering.Chart.Easy as E
 
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 import FinancialTimeseries.Util.Util (biliftA)
@@ -43,7 +39,7 @@ instance Pretty a => Pretty (Equity a) where
 
 newtype Yield a = Yield {
   unYield :: a
-  } deriving (Functor, Show)
+  } deriving (Show, Functor)
 
 instance Pretty a => Pretty (Yield a) where
   pretty (Yield a) = "Yield:\n" ++ pretty a

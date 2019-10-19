@@ -23,8 +23,6 @@ import FinancialTimeseries.Type.Segment (segments, Segment(..))
 import FinancialTimeseries.Type.Timeseries (Timeseries(..), slice)
 
 
-import Debug.Trace
-
 
 data ListOfSegments = ListOfSegments Int [Segment] deriving (Show)
 
