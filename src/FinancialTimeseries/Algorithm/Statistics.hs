@@ -16,18 +16,8 @@ import qualified Formatting.Time as FT
 
 
 import FinancialTimeseries.Type.Evaluate (Long, Short)
-import FinancialTimeseries.Type.Types (Invested, NotInvested(..))
+import FinancialTimeseries.Type.Types (Invested, NotInvested(..), Yield(..))
 import FinancialTimeseries.Util.Util (biliftA, biliftA2)
-
-
-
-longStatistics :: 
-  Long (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
-  -> Long (NotInvested (Vector (NominalDiffTime, a)), Invested (Vector (NominalDiffTime, a)))
-longStatistics =
-  let f v = biliftA2 (\t0 tn -> tn `diffUTCTime` t0) (\_ x -> x) (Vec.head v) (Vec.last v)
-      g = Vec.fromList . map f
-  in fmap (biliftA (fmap g) (fmap g))
 
 
 newtype ROI a = ROI {
@@ -61,7 +51,7 @@ stats2list stats =
   : ["Maximum ROI", show (unROI (maximumROI stats))]
   : ["Minimum ROI", show (unROI (minimumROI stats))]
   : ["Mean ROI", show (unROI (meanROI stats))]
-  : ["StdDev. ROI", show (unROI (stdDevROI stats))]
+  : ["StdDev. ROI (ca.)", show (unROI (stdDevROI stats))]
   : ["Total ROI", show (unROI (totalROI stats))]
 
   : []
@@ -89,13 +79,29 @@ roiHelper vs =
          , totalROI = ROI (product xs)
          }
 
-class Functor longOrShort => Statistics longOrShort where
-  statistics ::
-    (Functor notInv, Functor inv, Fractional a, Real a)
-    => longOrShort (notInv (Vector (NominalDiffTime, a)), inv (Vector (NominalDiffTime, a)))
-    -> longOrShort (notInv (Maybe (Stats a)), inv (Maybe (Stats a)))
-  statistics = fmap (biliftA (fmap roiHelper) (fmap roiHelper))
+{-         
+longStatistics ::
+  (Functor longOrShort, Functor notInv, Functor inv)
+  => longOrShort (Yield (notInv [Vector (UTCTime, a)], inv [Vector (UTCTime, a)]))
+  -> longOrShort (Yield (notInv (Vector (NominalDiffTime, a)), inv (Vector (NominalDiffTime, a))))
+  -}
 
 
-instance Statistics Long
-instance Statistics Short
+statistics ::
+  (Functor longOrShort, Functor notInv, Functor inv, Fractional a, Real a)
+  => longOrShort (Yield (notInv [Vector (UTCTime, a)], inv [Vector (UTCTime, a)]))
+  -> longOrShort (Yield (notInv (Maybe (Stats a)), inv (Maybe (Stats a))))
+statistics =
+  let f v = biliftA2 (\t0 tn -> tn `diffUTCTime` t0) (\_ x -> x) (Vec.head v) (Vec.last v)
+      g = Vec.fromList . map f
+  in fmap (fmap (biliftA (fmap (roiHelper . g)) (fmap (roiHelper . g))))
+
+
+
+{-
+statistics ::
+  (Functor longOrShort, Functor notInv, Functor inv, Fractional a, Real a)
+  => longOrShort (Yield (notInv (Vector (NominalDiffTime, a)), inv (Vector (NominalDiffTime, a))))
+  -> longOrShort (Yield (notInv (Maybe (Stats a)), inv (Maybe (Stats a))))
+statistics = fmap (fmap (biliftA (fmap roiHelper) (fmap roiHelper)))
+-}
