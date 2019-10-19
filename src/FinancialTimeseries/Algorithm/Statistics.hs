@@ -79,13 +79,6 @@ roiHelper vs =
          , totalROI = ROI (product xs)
          }
 
-{-         
-longStatistics ::
-  (Functor longOrShort, Functor notInv, Functor inv)
-  => longOrShort (Yield (notInv [Vector (UTCTime, a)], inv [Vector (UTCTime, a)]))
-  -> longOrShort (Yield (notInv (Vector (NominalDiffTime, a)), inv (Vector (NominalDiffTime, a))))
-  -}
-
 
 statistics ::
   (Functor longOrShort, Functor notInv, Functor inv, Fractional a, Real a)
@@ -95,13 +88,3 @@ statistics =
   let f v = biliftA2 (\t0 tn -> tn `diffUTCTime` t0) (\_ x -> x) (Vec.head v) (Vec.last v)
       g = Vec.fromList . map f
   in fmap (fmap (biliftA (fmap (roiHelper . g)) (fmap (roiHelper . g))))
-
-
-
-{-
-statistics ::
-  (Functor longOrShort, Functor notInv, Functor inv, Fractional a, Real a)
-  => longOrShort (Yield (notInv (Vector (NominalDiffTime, a)), inv (Vector (NominalDiffTime, a))))
-  -> longOrShort (Yield (notInv (Maybe (Stats a)), inv (Maybe (Stats a))))
-statistics = fmap (fmap (biliftA (fmap roiHelper) (fmap roiHelper)))
--}
