@@ -3,6 +3,8 @@
 
 module FinancialTimeseries.Test where
 
+import Control.Applicative (liftA2)
+
 import qualified Test.QuickCheck as QC
 
 import Data.Time (UTCTime, addUTCTime, parseTimeM, defaultTimeLocale)
@@ -13,12 +15,15 @@ import qualified Data.Vector as Vec
 import qualified Data.List as List
 
 import FinancialTimeseries.Algorithm.MovingAverage (Window(..), movingAverage)
+import FinancialTimeseries.Algorithm.Statistics (ROI(..), Stats(count, meanROI, totalROI), statistics)
 
-import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), Price(..), partitionInvested)
+import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), Price(..), Yield(..), partitionInvested)
 import FinancialTimeseries.Type.Evaluate (Long(..), long, evaluateInvested)
 import FinancialTimeseries.Type.Segment (segments, Segment(..))
 import FinancialTimeseries.Type.Timeseries (Timeseries(..), slice)
 
+
+import Debug.Trace
 
 
 data ListOfSegments = ListOfSegments Int [Segment] deriving (Show)
@@ -216,6 +221,26 @@ prop_moving_avg_segment_indices (MovingAvgTest w@(Window m) ts) =
 
 -- --------------------------------------------------------------------------
 
+ 
+prop_statistics_mean :: MovingAvgTest -> Bool
+prop_statistics_mean (MovingAvgTest w ts) =
+  let zs = movingAverage w ts
+      lg = long (partitionInvested (slice zs))
+      Long (Yield (NotInvested x, Invested y)) = statistics lg
+      
+      eps = 1.0e-4
+      
+      p u v =
+        abs ((unROI (meanROI u) ^ count u) - (unROI (totalROI u))) < eps
+        && abs ((unROI (meanROI v) ^ count v) - (unROI (totalROI v))) < eps
+
+  in case liftA2 p x y of
+       Nothing -> True
+       Just b -> b
+
+
+-- --------------------------------------------------------------------------
+
 check :: (QC.Testable a) => a -> IO ()
 check = QC.quickCheck . QC.withMaxSuccess 10000
  
@@ -235,4 +260,5 @@ test = do
   check prop_moving_avg_length
   check prop_moving_avg_alignment
   check prop_moving_avg_segment_indices
-  
+
+  check prop_statistics_mean
