@@ -4,6 +4,10 @@
 
 module FinancialTimeseries.Type.Evaluate where
 
+
+import Data.Distributive (Distributive, distribute)
+
+
 import Data.Time (UTCTime)
 
 import qualified Data.Vector as Vec
@@ -23,7 +27,8 @@ profit p =
   let f v =
         let (_, x0) = Vec.head v
         in Vec.map (fmap (p x0)) v
-  in Yield . biliftA (fmap (map f)) (fmap (map f)) . unPrice
+      g = fmap (map f)
+  in Yield . biliftA g g . unPrice
 
 
 
@@ -34,6 +39,8 @@ newtype Long a = Long {
 instance Pretty a => Pretty (Long a) where
   pretty (Long x) = "Long\n" ++ pretty x
 
+instance Distributive Long where
+  distribute = Long . fmap unLong
 
 long ::
   (Fractional a)
@@ -48,6 +55,10 @@ newtype Short a = Short {
 
 instance Pretty a => Pretty (Short a) where
   pretty (Short x) = "Short\n" ++ pretty x
+
+instance Distributive Short where
+  distribute = Short . fmap unShort
+
 
 short ::
   (Fractional a)
@@ -67,10 +78,10 @@ longEvaluate (Equity start) =
 
 class Evaluate longOrShort where
   evaluate ::
-    (Num a) =>
+    (Num a, Functor notInv, Functor inv) =>
     Equity a
-    -> longOrShort (Yield (NotInvested [Vector (u, a)], Invested [Vector (u, a)]))
-    -> longOrShort (Equity (NotInvested (Vector (u, a)), Invested (Vector (u, a))))
+    -> longOrShort (Yield (notInv [Vector (t, a)], inv [Vector (t, a)]))
+    -> longOrShort (Equity (notInv (Vector (t, a)), inv (Vector (t, a))))
 
 
 instance Evaluate Long where
@@ -80,18 +91,18 @@ instance Evaluate Long where
 
 
 evaluateInvested ::
-  (Num a, Functor longOrShort, Evaluate longOrShort) =>
+  (Num a, Functor notInv, Functor inv, Functor longOrShort, Evaluate longOrShort) =>
   Equity a
-  -> longOrShort (Yield (NotInvested [Vector (u, a)], Invested [Vector (u, a)]))
-  -> longOrShort (Equity (Invested (Vector (u, a))))
+  -> longOrShort (Yield (notInv [Vector (u, a)], inv [Vector (u, a)]))
+  -> longOrShort (Equity (inv (Vector (u, a))))
 evaluateInvested eqty = fmap (fmap snd) . evaluate eqty
 
 
 evaluateNotInvested ::
-  (Num a, Functor longOrShort, Evaluate longOrShort) =>
+  (Num a, Functor notInv, Functor inv, Functor longOrShort, Evaluate longOrShort) =>
   Equity a
-  -> longOrShort (Yield (NotInvested [Vector (u, a)], Invested [Vector (u, a)]))
-  -> longOrShort (Equity (NotInvested (Vector (u, a))))
+  -> longOrShort (Yield (notInv [Vector (u, a)], inv [Vector (u, a)]))
+  -> longOrShort (Equity (notInv (Vector (u, a))))
 evaluateNotInvested eqty = fmap (fmap fst) . evaluate eqty
 
 
