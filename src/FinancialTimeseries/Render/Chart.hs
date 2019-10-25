@@ -23,7 +23,6 @@ import qualified Data.ByteString.Lazy.Search as BSS
 
 import qualified Text.Blaze.Html5 as H5
 import Text.Blaze.Html (Html)
-import Text.Blaze.Internal (MarkupM)
 
 import qualified Graphics.Rendering.Chart.Easy as E
 import qualified Graphics.Rendering.Chart.Renderable as R
@@ -36,33 +35,12 @@ import Graphics.Svg.Core (renderBS)
 
 
 import FinancialTimeseries.Render.Css ((!))
+import FinancialTimeseries.Render.HtmlReader (HtmlReader, Config(..), runHtmlReader)
 import FinancialTimeseries.Type.Evaluate (Long(..))
 import FinancialTimeseries.Type.Segment (Segment(..))
 import FinancialTimeseries.Type.Timeseries (Timeseries(..))
 import FinancialTimeseries.Type.Types (Equity(..), Price(..))
 
-
-data Config = Config {
-  chartSize :: (Double, Double)
-  , denv :: D.DEnv Double
-  }
-
-mkConfig :: Double -> Double -> IO Config
-mkConfig w h = do
-  fs <- D.loadSansSerifFonts
-  let cs = (w, h)
-      env = D.createEnv E.vectorAlignmentFns w h fs
-  return $ Config {
-    chartSize = cs
-    , denv = env
-    }
-
-defConfig :: IO Config
-defConfig = mkConfig 1600 400
-
-
-
-type HtmlReader a = ReaderT Config MarkupM a
 
 
 renderChart :: (E.PlotValue a) => [(String, [[(UTCTime, a)]])] -> HtmlReader Html
@@ -108,8 +86,8 @@ renderHelper res vs =
 
 render2 ::
   (E.PlotValue a, Fractional a) =>
-  Equity (Vector (UTCTime, a)) -> [Timeseries a] -> Config -> Html
-render2 res vs config = join (runReaderT (renderHelper res vs) config)
+  Config -> Equity (Vector (UTCTime, a)) -> [Timeseries a] -> Html
+render2 config res vs = runHtmlReader (renderHelper res vs) config
 
 
 class Render longOrShort where
@@ -120,7 +98,7 @@ class Render longOrShort where
 instance Render Long where
   render (Long res) vs config = do
     H5.h2 $ H5.span $ H5.toHtml (Text.pack "Long")
-    render2 res vs config
+    render2 config res vs
 
 
 renderDocument :: Html -> Html

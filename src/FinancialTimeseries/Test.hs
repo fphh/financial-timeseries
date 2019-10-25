@@ -3,6 +3,8 @@
 
 module FinancialTimeseries.Test where
 
+import Data.Function (on)
+
 import Control.Applicative (liftA2)
 
 import qualified Test.QuickCheck as QC
@@ -10,10 +12,12 @@ import qualified Test.QuickCheck as QC
 import Data.Time (UTCTime, addUTCTime, parseTimeM, defaultTimeLocale)
 
 import qualified Data.Vector as Vec
+import Data.Vector (Vector)
 
 
 import qualified Data.List as List
 
+import FinancialTimeseries.Algorithm.MonteCarlo (MCStats(), statsHelper, start)
 import FinancialTimeseries.Algorithm.MovingAverage (Window(..), movingAverage)
 import FinancialTimeseries.Algorithm.Statistics (ROI(..), Stats(count, meanROI, totalROI), statistics)
 
@@ -22,7 +26,7 @@ import FinancialTimeseries.Type.Evaluate (Long(..), long, evaluateInvested)
 import FinancialTimeseries.Type.Segment (segments, Segment(..))
 import FinancialTimeseries.Type.Timeseries (Timeseries(..), slice)
 
-
+import Debug.Trace (trace)
 
 data ListOfSegments = ListOfSegments Int [Segment] deriving (Show)
 
@@ -239,12 +243,47 @@ prop_statistics_mean (MovingAvgTest w ts) =
 
 -- --------------------------------------------------------------------------
 
+data StatsHelper a = StatsHelper (Vector a) [Vector a] deriving (Show)
+
+instance QC.Arbitrary a => QC.Arbitrary (Vector a) where
+  arbitrary = QC.choose (1, 3) >>= fmap Vec.fromList . QC.vector
+
+instance (QC.Arbitrary a) => QC.Arbitrary (StatsHelper a) where
+  arbitrary = do
+    x <- QC.arbitrary
+    liftA2 StatsHelper (fmap (Vec.cons x) QC.arbitrary) (fmap (map (Vec.cons x)) QC.arbitrary)
+
+{-
+
+prop_montecarlo_peak_drawdown :: StatsHelper (QC.Positive Double) -> Bool
+prop_montecarlo_peak_drawdown (StatsHelper v vs) =
+  let ws = map (Vec.map QC.getPositive) (v:vs)
+      stats = statsHelper ws
+      (hmx, mx) = List.maximumBy (compare `on` snd) (map (\w -> (Vec.head w, Vec.maximum w)) ws)
+      (hmi, mi) = List.minimumBy (compare `on` snd) (map (\w -> (Vec.head w, Vec.minimum w)) ws)
+      eps = 1.0e-7
+  in abs (hmx * maxPeak stats - mx) < eps
+     && abs (hmi * maxDrawdown stats - mi) < eps
+
+
+prop_montecarlo_mean_profit :: StatsHelper (QC.Positive Double) -> Bool
+prop_montecarlo_mean_profit (StatsHelper v vs) =
+  let ws = map (Vec.map QC.getPositive) (v:vs)
+      m = sum (map (log . Vec.last) ws) / fromIntegral (length ws)
+      stats = statsHelper ws
+      s = start stats
+      eps = 1.0e-9
+  in abs (meanProfit stats * s - exp m) < eps
+-}
+
+-- --------------------------------------------------------------------------
+
 check :: (QC.Testable a) => a -> IO ()
 check = QC.quickCheck . QC.withMaxSuccess 10000
  
 test :: IO ()
 test = do
-
+  
   check prop_segment_length_non_zero
   check prop_segment_last_idx
   check prop_segment_all_less
@@ -260,3 +299,7 @@ test = do
   check prop_moving_avg_segment_indices
 
   check prop_statistics_mean
+
+
+  -- check prop_montecarlo_peak_drawdown
+  -- check prop_montecarlo_mean_profit
