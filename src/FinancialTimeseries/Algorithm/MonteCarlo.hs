@@ -1,11 +1,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 
 module FinancialTimeseries.Algorithm.MonteCarlo where
 
 import Data.Distributive (Distributive, distribute)
-
-import qualified Data.List as List
 
 import qualified Data.Vector as Vec
 import Data.Vector (Vector)
@@ -16,9 +15,16 @@ import qualified System.Random as R
 
 import qualified Statistics.Sample as Sample
 
+import qualified Data.Text.Lazy as Text
+import Data.String (fromString)
+
+import Formatting (format, (%), fixed)
+
 import FinancialTimeseries.Type.Evaluate (Evaluate, evaluate)
+import FinancialTimeseries.Type.Table (Table(..))
 import FinancialTimeseries.Type.Types (Equity(..), Yield(..), Invested(..), NotInvested(..))
 import FinancialTimeseries.Util.Util (biliftA)
+
 
 
 sample ::
@@ -57,16 +63,17 @@ samples sampLen xs = do
 
 
 data MonteCarlo a = MonteCarlo {
-  mcNotInv :: NotInvested (Vector (Vector a))
-  , mcInv :: Invested (Vector (Vector a))
-  } deriving (Show)
+  mcNotInv :: NotInvested a -- (Vector a)
+  , mcInv :: Invested a -- (Vector a)
+  } deriving (Show, Functor)
+
 
 mc ::
   (Num a, Functor longOrShort, Evaluate longOrShort, Distributive longOrShort) =>
   Config
   -> Equity a
   -> longOrShort (Yield (NotInvested [Vector (t, a)], Invested [Vector (t, a)]))
-  -> IO (longOrShort (MonteCarlo a))
+  -> IO (longOrShort (MonteCarlo (Vector (Vector a))))
 mc cfg eqty xs = do
   ss <- samples (sampleLength cfg) xs
   let n = numberOfSamples cfg
@@ -77,47 +84,138 @@ mc cfg eqty xs = do
   return (fmap (uncurry MonteCarlo . h . unEquity) ws)
 
 
-data Stats a = Stats {
-  q25 :: !a
+-- perc :: (Num a, Real a) => a -> String
+-- perc = Text.unpack . format (fixed 2 % fromString "%") . (100*)
+
+fmt :: (Num a, Real a) => a -> String
+fmt = Text.unpack . format (fixed 8)
+
+class Row a where
+  row :: a -> [String] 
+
+data Quantiles a = Quantiles {
+  q05 :: !a
+  , q25 :: !a
   , q50 :: !a
   , q75 :: !a
-  , pleqOne :: !a
-  , maxProfit :: !a
-  , minProfit :: !a
-  , meanProfit :: !a
-  , stdDevProfit :: !a
-  , pdf :: [(Double, a)]
+  , q95 :: !a
   } deriving (Show)
 
-statsHelper ::
-  (Ord a, Num a, Fractional a, Real a, Floating a) =>
-  a -> Vector a -> Stats a
-statsHelper strt vs =
+instance (Real a) => Row (Quantiles a) where
+  row (Quantiles a b c d e) = map fmt [a, b, c, d, e]
+
+data Probabilities a = Probabilities {
+  p0'50 :: !a
+  , p0'75 :: !a
+  , p1'00 :: !a
+  , p1'25 :: !a
+  , p1'50 :: !a
+  , p1'75 :: !a
+  , p2'00 :: !a
+  } deriving (Show)
+
+instance (Real a) => Row (Probabilities a) where
+  row (Probabilities a b c d e f g) = map fmt [a, b, c, d, e, f, g]
+
+data Moments a = Moments {
+  maxYield :: !a
+  , minYield :: !a
+  , meanYield :: !a
+  , stdDevYield :: !a
+  } deriving (Show)
+  
+instance (Real a) => Row (Moments a) where
+  row (Moments a b c d) = map fmt [a, b, c, d]
+
+data Stats a = Stats {
+  quantiles :: Quantiles a
+  , probabilities :: Probabilities a
+  , moments :: Moments a
+  , pdf :: Vector (Double, a)
+  } deriving (Show)
+
+mkStatistics ::
+  (Ord a, Num a, Fractional a, Real a) =>
+  Vector a -> Stats a
+mkStatistics vs =
   let noe = fromIntegral (Vec.length vs)
-      sorted = Vec.modify Merge.sort (Vec.map (/strt) vs)
+      sorted = Vec.modify Merge.sort vs
       sortedFrac = Vec.map realToFrac sorted
+
+      quart s = sorted Vec.! (round (s * noe :: Double))
+      q = Quantiles {
+        q05 = quart 0.05
+        , q25 = quart 0.25
+        , q50 = quart 0.50
+        , q75 = quart 0.75
+        , q95 = quart 0.95
+        }
+
+      prob s = fromIntegral (Vec.length (Vec.takeWhile (<s) sorted)) / noe
+      p = Probabilities {
+        p0'50 = prob 0.5
+        , p0'75 = prob 0.75
+        , p1'00 = prob 1.0
+        , p1'25 = prob 1.25
+        , p1'50 = prob 1.5
+        , p1'75 = prob 1.75
+        , p2'00 = prob 2.00
+        }
+
+      m = Moments {
+        maxYield = Vec.last sorted
+        , minYield = Vec.head sorted
+        , meanYield = realToFrac $ Sample.mean sortedFrac
+        , stdDevYield = realToFrac $ Sample.stdDev sortedFrac
+        }
+        
   in Stats {
-    q25 = sorted Vec.! (round (1 * (noe / 4)))
-    , q50 = sorted Vec.! (round (2 * (noe / 4)))
-    , q75 = sorted Vec.! (round (3 * (noe / 4)))
-    , pleqOne = fromIntegral (Vec.length (Vec.takeWhile (<1) sorted)) / noe
-    , maxProfit = Vec.last sorted
-    , minProfit = Vec.head sorted
-    , meanProfit = realToFrac $ Sample.mean sortedFrac
-    , stdDevProfit = realToFrac $ Sample.stdDev sortedFrac
-    , pdf = Vec.toList (Vec.imap (\i p -> (fromIntegral i / noe, p)) sorted)
+    quantiles = q
+    , probabilities = p
+    , moments = m
+    , pdf = Vec.imap (\i x -> (fromIntegral i / noe, x)) sorted
     }
 
-stats2list :: (Show a) => Stats a -> [[String]]
+
+stats2list :: (Real a) => [Stats a] -> [Table]
+stats2list xs =
+  let qheaders = ["Q05", "Q25", "Q50", "Q75", "Q95"]
+      pheaders = ["P(X < 0.5)", "P(X < 0.75)", "P(X < 1.0)", "P(X < 1.25)", "P(X < 1.5)", "P(X < 1.75)", "P(X < 2.0)"]
+      mheaders = ["Max.", "Min.", "Mean", "StdDev."]
+  in Table "Quantiles" (qheaders : map (row . quantiles) xs)
+     : Table "Probabilities" (pheaders : map (row . probabilities) xs)
+     : Table "Moments" (mheaders : map (row . moments) xs)
+     : []
+
+
+
+mcYields ::
+  (Fractional a) =>
+  MonteCarlo (Vector (Vector a)) -> Yield (MonteCarlo (Vector a))
+mcYields = Yield . fmap (Vec.map (\vs -> Vec.last vs / Vec.head vs))
+
+
+mc2stats ::
+  (Fractional a, Real a, Functor f) =>
+  f (MonteCarlo (Vector a)) -> f (MonteCarlo (Stats a))
+mc2stats = fmap (fmap mkStatistics)
+
+stats2table ::
+  (Functor f, Real a) =>
+  f (MonteCarlo [Stats a]) -> f (MonteCarlo [Table])
+stats2table = fmap (fmap stats2list)
+
+{-
+stats2list :: (Show a, Real a) => Stats a -> [[String]]
 stats2list stats =  (\(as, bs) -> [as, bs]) $ unzip $
-  ("Q25", show (q25 stats))
-  : ("Q50 (Median)", show (q50 stats))
-  : ("Q75", show (q75 stats))
-  : ("P(X < 1)", show (pleqOne stats))
-  : ("Max.", show (maxProfit stats))
-  : ("Min.", show (minProfit stats))
-  : ("Mean", show (meanProfit stats))
-  : ("StdDev.", show (stdDevProfit stats))
+  ("Q25", fmt (q25 stats))
+  : ("Q50 (Median)", fmt (q50 stats))
+  : ("Q75", fmt (q75 stats))
+  : ("P(X < 1)", fmt (pleqOne stats))
+  : ("Max.", fmt (maxProfit stats))
+  : ("Min.", fmt (minProfit stats))
+  : ("Mean", fmt (meanProfit stats))
+  : ("StdDev.", fmt (stdDevProfit stats))
   : []
 
 data MCStats a = MCStats {
@@ -130,6 +228,8 @@ data MCStats a = MCStats {
   , meanLength :: !Double
   , stdDevLength :: !Double
   , profit :: Stats a
+  , absoluteDrawdown :: Stats a
+  , relativeDrawdown :: Stats a
   } deriving (Show)
 
 mcStatsHelper ::
@@ -141,6 +241,8 @@ mcStatsHelper vs =
       (win, loose) = Vec.partition (1.0 <) ls
       lens = Vec.map Vec.length vs
       lensFrac = Vec.map realToFrac lens
+      absDDs = Vec.map Vec.minimum vs
+      relDDs = Vec.map (\v -> Vec.minimum (Vec.zipWith (/) v (Vec.postscanl max 0 v))) vs
   in MCStats {
     count = Vec.length vs
     , winners = Vec.length win
@@ -150,7 +252,9 @@ mcStatsHelper vs =
     , minLength = Vec.minimum lens
     , meanLength = Sample.mean lensFrac
     , stdDevLength = Sample.stdDev lensFrac
-    , profit = statsHelper strt ls
+    , profit = statsHelper (Vec.map (/strt) ls)
+    , absoluteDrawdown = statsHelper (Vec.map (/strt) absDDs)
+    , relativeDrawdown = statsHelper relDDs
     }
 
 mcStats2list :: (Show a) => MCStats a -> [[String]]
@@ -161,11 +265,13 @@ mcStats2list stats = (\(as, bs) -> [as, bs]) $ unzip $
   : ("Start", show (start stats))
   : ("Max. Len.", show (maxLength stats))
   : ("Min. Len.", show (minLength stats))
-  : ("Mean Len.", show (meanLength stats))
-  : ("StdDev. Len.", show (stdDevLength stats))
+  : ("Mean Len.", fmt (meanLength stats))
+  : ("StdDev. Len.", fmt (stdDevLength stats))
   : []
 
 stats ::
   (Ord a, Real a, Fractional a, Floating a) =>
   MonteCarlo a -> (NotInvested (MCStats a), Invested (MCStats a))
 stats (MonteCarlo a b) = (fmap mcStatsHelper a, fmap mcStatsHelper b)
+
+-}

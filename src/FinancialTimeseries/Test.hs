@@ -17,7 +17,7 @@ import Data.Vector (Vector)
 
 import qualified Data.List as List
 
-import FinancialTimeseries.Algorithm.MonteCarlo (MCStats(), statsHelper, start)
+-- import FinancialTimeseries.Algorithm.MonteCarlo (MCStats(), statsHelper, start)
 import FinancialTimeseries.Algorithm.MovingAverage (Window(..), movingAverage)
 import FinancialTimeseries.Algorithm.Statistics (ROI(..), Stats(count, meanROI, totalROI), statistics)
 

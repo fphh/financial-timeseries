@@ -72,7 +72,7 @@ renderMC vs = do
     Vec.mapM_ f vs
 
 
-renderHelper :: (E.PlotValue a) => MonteCarlo a -> HtmlReader Html
+renderHelper :: (E.PlotValue a) => MonteCarlo (Vector (Vector a)) -> HtmlReader Html
 renderHelper (MonteCarlo (NotInvested nis) (Invested is)) = do
   chartInv <- renderMC is
   chartNotInv <- renderMC nis
@@ -86,13 +86,15 @@ renderHelper (MonteCarlo (NotInvested nis) (Invested is)) = do
 
 render ::
   (E.PlotValue a) =>
-  Config -> MonteCarlo a -> Html
+  Config -> MonteCarlo (Vector (Vector a)) -> Html
 render config mc = runHtmlReader (renderHelper mc) config
 
 
 
-renderPDFHelper :: [(Double, Double)] -> HtmlReader Html
-renderPDFHelper pdf = do
+renderPDFHelper ::
+  (E.PlotValue a) =>
+  [(String, Vector (Double, a))] -> HtmlReader Html
+renderPDFHelper pdfs = do
   cfg <- ask
 
   let (w, h) = chartSize cfg
@@ -100,7 +102,6 @@ renderPDFHelper pdf = do
       rr = BS.pack [99,108,105,112,45,112,97,116,104,61]
       opts = DSVG.SVGOptions (D2.dims2D w h) Nothing Text.empty [] True
 
-  
   return
     $ H5.preEscapedToHtml
     $ BSL.unpack
@@ -111,9 +112,10 @@ renderPDFHelper pdf = do
     $ D.runBackendWithGlyphs env
     $ flip R.render (w, h)
     $ R.toRenderable
-    $ E.plot (E.line "Fraction 1.0" [pdf])
- 
+    $ mapM_ (E.plot . uncurry E.line . fmap ((:[]) . Vec.toList)) pdfs
+
 
 renderPDF ::
-  Config -> [(Double, Double)] -> Html
-renderPDF config pdf = runHtmlReader (renderPDFHelper pdf) config
+  (E.PlotValue a) =>
+  Config -> [(String, Vector (Double, a))] -> Html
+renderPDF config pdfs = runHtmlReader (renderPDFHelper pdfs) config

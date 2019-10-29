@@ -29,6 +29,7 @@ library
                    , FinancialTimeseries.Test
                    , FinancialTimeseries.Type.Evaluate
                    , FinancialTimeseries.Type.Segment
+                   , FinancialTimeseries.Type.Table
                    , FinancialTimeseries.Type.Timeseries
                    , FinancialTimeseries.Type.Types
                    , FinancialTimeseries.Util.Pretty
@@ -63,6 +64,7 @@ library
                      , random
                      , distributive
                      , colour
+                     , formatting
 
   hs-source-dirs:      src
   default-language:    Haskell2010

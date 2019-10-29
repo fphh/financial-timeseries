@@ -41,7 +41,7 @@ newtype Equity a = Equity {
   } deriving (Show, Functor)
 
 instance Pretty a => Pretty (Equity a) where
-  pretty (Equity a) = "Equity:\n" ++ pretty a
+  pretty (Equity x) = "Equity:\n" ++ pretty x
 
 instance Distributive Equity where
   distribute = Equity . fmap unEquity
@@ -52,7 +52,7 @@ newtype Yield a = Yield {
   } deriving (Show, Functor)
 
 instance Pretty a => Pretty (Yield a) where
-  pretty (Yield a) = "Yield:\n" ++ pretty a
+  pretty (Yield x) = "Yield:\n" ++ pretty x
 
 instance Distributive Yield where
   distribute = Yield . fmap unYield
@@ -60,13 +60,35 @@ instance Distributive Yield where
 
 newtype Price a = Price {
   unPrice :: a
-  } deriving (Functor, Show)
+  } deriving (Functor, Show, Read)
 
 instance Pretty a => Pretty (Price a) where
-  pretty (Price a) = "Price:\n" ++ pretty a
+  pretty (Price x) = "Price:\n" ++ pretty x
 
 instance Distributive Price where
   distribute = Price . fmap unPrice
+
+
+newtype AbsoluteDrawdown a = AbsoluteDrawdown {
+  unAbsoluteDrawdown :: a
+  } deriving (Functor, Show)
+
+instance Pretty a => Pretty (AbsoluteDrawdown a) where
+  pretty (AbsoluteDrawdown x) = "Absolute drawdown:\n" ++ pretty x
+
+instance Distributive AbsoluteDrawdown where
+  distribute = AbsoluteDrawdown . fmap unAbsoluteDrawdown
+
+
+newtype RelativeDrawdown a = RelativeDrawdown {
+  unRelativeDrawdown :: a
+  } deriving (Functor, Show)
+
+instance Pretty a => Pretty (RelativeDrawdown a) where
+  pretty (RelativeDrawdown x) = "Relative drawdown:\n" ++ pretty x
+
+instance Distributive RelativeDrawdown where
+  distribute = RelativeDrawdown . fmap unRelativeDrawdown
 
 
 swapYieldInvested ::

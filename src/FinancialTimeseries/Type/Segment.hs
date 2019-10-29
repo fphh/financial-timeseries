@@ -8,7 +8,7 @@ import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..))
 data Segment = Segment {
   from :: !Int
   , to :: !Int
-  } deriving (Show)
+  } deriving (Show, Read)
 
 inv :: b -> Either a (Invested b)
 inv = Right . Invested

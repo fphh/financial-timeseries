@@ -28,7 +28,7 @@ data Timeseries a = Timeseries {
   , timeseries :: Price (Vector (UTCTime, a))
   , investedSegments :: [Segment]
   , additionalSeries :: [(String, Price (Vector (UTCTime, a)))] -- [(String, Vector (UTCTime, a))]
-  } deriving (Show)
+  } deriving (Show, Read)
 
 
 

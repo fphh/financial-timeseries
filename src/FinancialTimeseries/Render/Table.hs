@@ -12,12 +12,11 @@ import Text.Blaze.Html (Html)
 
 
 import FinancialTimeseries.Render.Css ((!))
+import FinancialTimeseries.Type.Table (Table(..))
 
 
-
-
-table :: String -> [[String]] -> Html
-table title ts =
+table :: Table -> Html
+table (Table ttle ts) =
   let us = map (\t -> (length t, t)) ts
       (len, _) = List.maximumBy (compare `on` fst) us
       vs = map (\(l, t) -> t ++ replicate (len - l) "") us
@@ -29,5 +28,5 @@ table title ts =
       hrow cs = H5.div ! "rTableRow" $ mapM_ hcell cs
       
   in H5.div ! "rTable" $ do
-     hrow (title : replicate (len-1) "")
+     hrow (ttle : replicate (len-1) "")
      mapM_ row vs
