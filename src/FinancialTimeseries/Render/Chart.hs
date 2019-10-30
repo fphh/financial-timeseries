@@ -88,12 +88,20 @@ render2 ::
 render2 config res vs = runHtmlReader (renderHelper res vs) config
 
 
-class Render longOrShort where
-  render ::
-    (E.PlotValue a, Fractional a) =>
-    longOrShort (Equity (Vector (UTCTime, a))) -> [Timeseries a] -> Config -> Html
+chart ::
+  (E.PlotValue a, Fractional a) =>
+  Equity (Vector (UTCTime, a)) -> [Timeseries a] -> Config -> Html
+chart es vs config = render2 config es vs
 
-instance Render Long where
-  render (Long res) vs config = do
-    H5.h2 $ H5.span $ H5.toHtml (Text.pack "Long")
-    render2 config res vs
+
+{-
+class Chart longOrShort where
+  chart ::
+    (E.PlotValue a, Fractional a) =>
+    Equity (Vector (UTCTime, a)) -> [Timeseries a] -> Config -> Html
+
+instance Chart Long where
+  chart es vs config = render2 config es vs
+    -- H5.h2 $ H5.span $ H5.toHtml (Text.pack "Long")
+    -- render2 config es vs
+-}

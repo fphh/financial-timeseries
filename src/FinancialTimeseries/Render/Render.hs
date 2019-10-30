@@ -1,18 +1,35 @@
+{-# LANGUAGE FlexibleInstances #-}
 
 
 module FinancialTimeseries.Render.Render where
 
+import Control.Applicative (liftA2)
+-- import Control.Monad (liftM)
+
+import qualified Data.List as List
+
+import Data.Vector (Vector)
+
+import qualified Data.Text as Text
+
+import qualified Text.Blaze.Html5 as H5
 import Text.Blaze.Html (Html)
 
+import qualified Graphics.Rendering.Chart.Easy as E
+
+import FinancialTimeseries.Render.HtmlReader (HtmlReader, Config, runHtmlReader)
+import FinancialTimeseries.Render.MonteCarlo (renderMC)
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
 import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), Yield(..), Price(..), AbsoluteDrawdown(..), RelativeDrawdown(..))
-
 import FinancialTimeseries.Type.Short (Short(..))
 
 class Render a where
-  render :: [String] -> a -> Html
+  render :: [String] -> a -> HtmlReader Html
 
+
+renderHtml :: Config -> HtmlReader Html -> Html
+renderHtml config html = runHtmlReader html config
 
 instance (Render a) => Render (MonteCarlo a) where
   render xs (MonteCarlo m) = render (xs ++ ["MonteCarlo"]) m
@@ -38,14 +55,19 @@ instance (Render a) => Render (AbsoluteDrawdown a) where
 instance (Render a) => Render (RelativeDrawdown a) where
   render xs (RelativeDrawdown m) = render (xs ++ ["RelativeDrawdown"]) m
 
-instance (Render a) => Render [a] where
-  render xs ys = mapM_ (render xs) ys
+-- instance (Render a) => Render [a] where
+--  render xs ys = sequence (map (render xs) ys)
 
 instance (Render a, Render b) => Render (a, b) where
-  render xs (u, v) = render xs u <> render xs v
+  render xs (u, v) = liftA2 (<>) (render xs u) (render xs v)
 
 instance (Render a) => Render (Long a) where
   render xs (Long m) = render (xs ++ ["Long"]) m
 
 instance (Render a) => Render (Short a) where
   render xs (Short m) = render (xs ++ ["Short"]) m
+
+instance (E.PlotValue a) => Render (Vector (Vector a)) where
+  render xs vs =
+    let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
+    in fmap (h <>) (renderMC vs)

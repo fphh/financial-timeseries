@@ -8,8 +8,8 @@ import Text.Blaze.Html (Html)
 
 import FinancialTimeseries.Render.Css ((!))
 
-renderDocument :: Html -> Html
-renderDocument chart = do
+render :: Html -> Html
+render chart = do
   H5.docType
   H5.html $ do
     H5.body ! "monoFont" $ do
