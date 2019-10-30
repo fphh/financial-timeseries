@@ -16,7 +16,8 @@ extra-source-files:  ChangeLog.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:   FinancialTimeseries.Algorithm.MonteCarlo
+  exposed-modules:   FinancialTimeseries.Algorithm.Evaluate
+                   , FinancialTimeseries.Algorithm.MonteCarlo
                    , FinancialTimeseries.Algorithm.MovingAverage
                    , FinancialTimeseries.Algorithm.Statistics
                    , FinancialTimeseries.Render.Chart
@@ -28,7 +29,6 @@ library
                    , FinancialTimeseries.Render.Table
                    , FinancialTimeseries.Source.Alphavantage                   
                    , FinancialTimeseries.Test
-                   , FinancialTimeseries.Type.Evaluate
                    , FinancialTimeseries.Type.Long
                    , FinancialTimeseries.Type.MonteCarlo
                    , FinancialTimeseries.Type.Segment

@@ -13,7 +13,7 @@ import qualified System.Random as R
 import qualified Statistics.Sample as Sample
 
 
-import FinancialTimeseries.Type.Evaluate (Evaluate, evaluate)
+import FinancialTimeseries.Algorithm.Evaluate (Evaluate, evaluate)
 import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
 import FinancialTimeseries.Type.Table (Table(..))
 import FinancialTimeseries.Type.Types (Equity(..), Yield(..), AbsoluteDrawdown(..), RelativeDrawdown(..), Invested(..), NotInvested(..))

@@ -1,5 +1,5 @@
 
-module FinancialTimeseries.Type.Evaluate where
+module FinancialTimeseries.Algorithm.Evaluate where
 
 
 import Data.Time (UTCTime)
