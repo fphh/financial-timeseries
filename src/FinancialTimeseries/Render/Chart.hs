@@ -97,15 +97,3 @@ instance Render Long where
   render (Long res) vs config = do
     H5.h2 $ H5.span $ H5.toHtml (Text.pack "Long")
     render2 config res vs
-
-
-renderDocument :: Html -> Html
-renderDocument chart = do
-  H5.docType
-  H5.html $ do
-    H5.body ! "monoFont" $ do
-      H5.h1 $ H5.span $ H5.toHtml (Text.pack "Analysis")
-      chart
-
-
-

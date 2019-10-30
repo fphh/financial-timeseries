@@ -22,6 +22,7 @@ library
                    , FinancialTimeseries.Algorithm.Statistics
                    , FinancialTimeseries.Render.Chart
                    , FinancialTimeseries.Render.Css
+                   , FinancialTimeseries.Render.Document
                    , FinancialTimeseries.Render.HtmlReader
                    , FinancialTimeseries.Render.MonteCarlo
                    , FinancialTimeseries.Render.Render
