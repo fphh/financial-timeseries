@@ -15,10 +15,6 @@ import qualified System.Random as R
 
 import qualified Statistics.Sample as Sample
 
-import qualified Data.Text.Lazy as Text
-import Data.String (fromString)
-
-import Formatting (format, (%), fixed)
 
 import FinancialTimeseries.Type.Evaluate (Evaluate, evaluate)
 import FinancialTimeseries.Type.Table (Table(..))
@@ -63,8 +59,8 @@ samples sampLen xs = do
 
 
 data MonteCarlo a = MonteCarlo {
-  mcNotInv :: NotInvested a -- (Vector a)
-  , mcInv :: Invested a -- (Vector a)
+  mcNotInv :: NotInvested a
+  , mcInv :: Invested a
   } deriving (Show, Functor)
 
 

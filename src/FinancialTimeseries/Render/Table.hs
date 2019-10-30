@@ -13,14 +13,14 @@ import Text.Blaze.Html (Html)
 
 import FinancialTimeseries.Render.Css ((!))
 import FinancialTimeseries.Type.Table (Table(..))
+import FinancialTimeseries.Util.Pretty (fmt)
 
 
-{-
-table :: Table a -> Html
+table :: (Real a) => Table a -> Html
 table (Table ttle hs ts) =
   let us = map (\t -> (length t, t)) ts
       (len, _) = List.maximumBy (compare `on` fst) us
-      vs = map (\(l, t) -> t ++ replicate (len - l) "") us
+      vs = map (\(l, t) -> map fmt t ++ replicate (len - l) "") us
 
       cell c = H5.div ! "rTableCell" $ H5.toHtml c
       row cs = H5.div ! "rTableRow" $ mapM_ cell cs
@@ -31,4 +31,4 @@ table (Table ttle hs ts) =
   in H5.div ! "rTable" $ do
      hrow (ttle : replicate (len-1) "")
      mapM_ row vs
--}
+
