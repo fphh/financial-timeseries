@@ -57,12 +57,16 @@ samples sampLen xs = do
 
   return (zipWith (sample xs) as bs)
 
-
+{-
 data MonteCarlo a = MonteCarlo {
   mcNotInv :: NotInvested a
   , mcInv :: Invested a
   } deriving (Show, Functor)
+-}
 
+newtype MonteCarlo a = MonteCarlo {
+  unMonteCarlo :: (NotInvested a, Invested a)
+  } deriving (Show, Functor)
 
 mc ::
   (Num a, Functor longOrShort, Evaluate longOrShort, Distributive longOrShort) =>
@@ -77,7 +81,7 @@ mc cfg eqty xs = do
       ws = fmap distribute (distribute (map (fmap (fmap (biliftA g g)) . evaluate eqty) ss))
       k = distribute . Vec.fromList . take n
       h = biliftA k k . unzip
-  return (fmap (uncurry MonteCarlo . h . unEquity) ws)
+  return (fmap (MonteCarlo . h . unEquity) ws)
 
 
 class Row a where

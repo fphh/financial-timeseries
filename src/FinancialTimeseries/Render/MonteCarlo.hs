@@ -73,7 +73,7 @@ renderMC vs = do
 
 
 renderHelper :: (E.PlotValue a) => MonteCarlo (Vector (Vector a)) -> HtmlReader Html
-renderHelper (MonteCarlo (NotInvested nis) (Invested is)) = do
+renderHelper (MonteCarlo (NotInvested nis, Invested is)) = do
   chartInv <- renderMC is
   chartNotInv <- renderMC nis
   return $ do
