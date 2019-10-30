@@ -2,7 +2,8 @@
 module FinancialTimeseries.Type.Table where
 
 
-data Table = Table {
+data Table a = Table {
   title :: String
-  , table :: [[String]]
+  , header :: [String]
+  , table :: [[a]]
   } deriving (Show)

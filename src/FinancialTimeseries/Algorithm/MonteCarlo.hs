@@ -22,7 +22,7 @@ import Formatting (format, (%), fixed)
 
 import FinancialTimeseries.Type.Evaluate (Evaluate, evaluate)
 import FinancialTimeseries.Type.Table (Table(..))
-import FinancialTimeseries.Type.Types (Equity(..), Yield(..), Invested(..), NotInvested(..))
+import FinancialTimeseries.Type.Types (Equity(..), Yield(..), AbsoluteDrawdown(..), RelativeDrawdown(..), Invested(..), NotInvested(..))
 import FinancialTimeseries.Util.Util (biliftA)
 
 
@@ -84,14 +84,8 @@ mc cfg eqty xs = do
   return (fmap (uncurry MonteCarlo . h . unEquity) ws)
 
 
--- perc :: (Num a, Real a) => a -> String
--- perc = Text.unpack . format (fixed 2 % fromString "%") . (100*)
-
-fmt :: (Num a, Real a) => a -> String
-fmt = Text.unpack . format (fixed 8)
-
 class Row a where
-  row :: a -> [String] 
+  row :: a x -> [x]
 
 data Quantiles a = Quantiles {
   q05 :: !a
@@ -101,8 +95,8 @@ data Quantiles a = Quantiles {
   , q95 :: !a
   } deriving (Show)
 
-instance (Real a) => Row (Quantiles a) where
-  row (Quantiles a b c d e) = map fmt [a, b, c, d, e]
+instance Row Quantiles where
+  row (Quantiles a b c d e) = [a, b, c, d, e]
 
 data Probabilities a = Probabilities {
   p0'50 :: !a
@@ -114,8 +108,8 @@ data Probabilities a = Probabilities {
   , p2'00 :: !a
   } deriving (Show)
 
-instance (Real a) => Row (Probabilities a) where
-  row (Probabilities a b c d e f g) = map fmt [a, b, c, d, e, f, g]
+instance Row Probabilities where
+  row (Probabilities a b c d e f g) = [a, b, c, d, e, f, g]
 
 data Moments a = Moments {
   maxYield :: !a
@@ -124,8 +118,8 @@ data Moments a = Moments {
   , stdDevYield :: !a
   } deriving (Show)
   
-instance (Real a) => Row (Moments a) where
-  row (Moments a b c d) = map fmt [a, b, c, d]
+instance Row Moments where
+  row (Moments a b c d) = [a, b, c, d]
 
 data Stats a = Stats {
   quantiles :: Quantiles a
@@ -177,101 +171,54 @@ mkStatistics vs =
     }
 
 
-stats2list :: (Real a) => [Stats a] -> [Table]
+stats2list :: [Stats a] -> [Table a]
 stats2list xs =
   let qheaders = ["Q05", "Q25", "Q50", "Q75", "Q95"]
       pheaders = ["P(X < 0.5)", "P(X < 0.75)", "P(X < 1.0)", "P(X < 1.25)", "P(X < 1.5)", "P(X < 1.75)", "P(X < 2.0)"]
       mheaders = ["Max.", "Min.", "Mean", "StdDev."]
-  in Table "Quantiles" (qheaders : map (row . quantiles) xs)
-     : Table "Probabilities" (pheaders : map (row . probabilities) xs)
-     : Table "Moments" (mheaders : map (row . moments) xs)
+  in Table "Quantiles" qheaders (map (row . quantiles) xs)
+     : Table "Probabilities" pheaders (map (row . probabilities) xs)
+     : Table "Moments" mheaders (map (row . moments) xs)
      : []
-
 
 
 mcYields ::
   (Fractional a) =>
-  MonteCarlo (Vector (Vector a)) -> Yield (MonteCarlo (Vector a))
-mcYields = Yield . fmap (Vec.map (\vs -> Vec.last vs / Vec.head vs))
+  Vector (Vector a) -> Yield (Vector a)
+mcYields =
+  Yield
+  . Vec.map (\vs -> Vec.last vs / Vec.head vs)
 
+mcAbsoluteDrawdowns ::
+  (Ord a, Fractional a) =>
+  Vector (Vector a) -> AbsoluteDrawdown (Vector a)
+mcAbsoluteDrawdowns =
+  AbsoluteDrawdown
+  . Vec.map (\vs -> Vec.minimum vs / Vec.head vs)
 
-mc2stats ::
-  (Fractional a, Real a, Functor f) =>
-  f (MonteCarlo (Vector a)) -> f (MonteCarlo (Stats a))
-mc2stats = fmap (fmap mkStatistics)
+mcRelativeDrawdowns ::
+  (Ord a, Fractional a) =>
+  Vector (Vector a) -> RelativeDrawdown (Vector a)
+mcRelativeDrawdowns =
+  RelativeDrawdown
+  . Vec.map (\v -> Vec.minimum (Vec.zipWith (/) v (Vec.postscanl max 0 v)))
 
-stats2table ::
-  (Functor f, Real a) =>
-  f (MonteCarlo [Stats a]) -> f (MonteCarlo [Table])
-stats2table = fmap (fmap stats2list)
+toStatistics ::
+  (Functor g, Distributive f, Real a, Fractional a) =>
+  (Vector (Vector a) -> f (Vector a)) -> g [Vector (Vector a)] -> g (f [Table a])
+toStatistics f = fmap (fmap (stats2list . map mkStatistics) . distribute . map f)
 
-{-
-stats2list :: (Show a, Real a) => Stats a -> [[String]]
-stats2list stats =  (\(as, bs) -> [as, bs]) $ unzip $
-  ("Q25", fmt (q25 stats))
-  : ("Q50 (Median)", fmt (q50 stats))
-  : ("Q75", fmt (q75 stats))
-  : ("P(X < 1)", fmt (pleqOne stats))
-  : ("Max.", fmt (maxProfit stats))
-  : ("Min.", fmt (minProfit stats))
-  : ("Mean", fmt (meanProfit stats))
-  : ("StdDev.", fmt (stdDevProfit stats))
-  : []
+yields ::
+  (Fractional a, Real a) =>
+  MonteCarlo [Vector (Vector a)] -> MonteCarlo (Yield [Table a])
+yields = toStatistics mcYields
 
-data MCStats a = MCStats {
-  count :: !Int
-  , winners :: !Int
-  , loosers :: !Int
-  , start :: !a
-  , maxLength :: !Int
-  , minLength :: !Int
-  , meanLength :: !Double
-  , stdDevLength :: !Double
-  , profit :: Stats a
-  , absoluteDrawdown :: Stats a
-  , relativeDrawdown :: Stats a
-  } deriving (Show)
+absoluteDrawdowns ::
+  (Fractional a, Real a) =>
+  MonteCarlo [Vector (Vector a)] -> MonteCarlo (AbsoluteDrawdown [Table a])
+absoluteDrawdowns = toStatistics mcAbsoluteDrawdowns
 
-mcStatsHelper ::
-  (Ord a, Num a, Fractional a, Real a, Floating a) =>
-  Vector (Vector a) -> MCStats a
-mcStatsHelper vs =
-  let strt = Vec.head (Vec.head vs)
-      ls = Vec.map Vec.last vs
-      (win, loose) = Vec.partition (1.0 <) ls
-      lens = Vec.map Vec.length vs
-      lensFrac = Vec.map realToFrac lens
-      absDDs = Vec.map Vec.minimum vs
-      relDDs = Vec.map (\v -> Vec.minimum (Vec.zipWith (/) v (Vec.postscanl max 0 v))) vs
-  in MCStats {
-    count = Vec.length vs
-    , winners = Vec.length win
-    , loosers = Vec.length loose
-    , start = strt
-    , maxLength = Vec.maximum lens
-    , minLength = Vec.minimum lens
-    , meanLength = Sample.mean lensFrac
-    , stdDevLength = Sample.stdDev lensFrac
-    , profit = statsHelper (Vec.map (/strt) ls)
-    , absoluteDrawdown = statsHelper (Vec.map (/strt) absDDs)
-    , relativeDrawdown = statsHelper relDDs
-    }
-
-mcStats2list :: (Show a) => MCStats a -> [[String]]
-mcStats2list stats = (\(as, bs) -> [as, bs]) $ unzip $
-  ("Count", show (count stats))
-  : ("Winners", show (winners stats))
-  : ("Loosers", show (loosers stats))
-  : ("Start", show (start stats))
-  : ("Max. Len.", show (maxLength stats))
-  : ("Min. Len.", show (minLength stats))
-  : ("Mean Len.", fmt (meanLength stats))
-  : ("StdDev. Len.", fmt (stdDevLength stats))
-  : []
-
-stats ::
-  (Ord a, Real a, Fractional a, Floating a) =>
-  MonteCarlo a -> (NotInvested (MCStats a), Invested (MCStats a))
-stats (MonteCarlo a b) = (fmap mcStatsHelper a, fmap mcStatsHelper b)
-
--}
+relativeDrawdowns ::
+  (Fractional a, Real a) =>
+  MonteCarlo [Vector (Vector a)] -> MonteCarlo (RelativeDrawdown [Table a])
+relativeDrawdowns = toStatistics mcRelativeDrawdowns

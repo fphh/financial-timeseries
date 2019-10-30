@@ -15,8 +15,9 @@ import FinancialTimeseries.Render.Css ((!))
 import FinancialTimeseries.Type.Table (Table(..))
 
 
-table :: Table -> Html
-table (Table ttle ts) =
+{-
+table :: Table a -> Html
+table (Table ttle hs ts) =
   let us = map (\t -> (length t, t)) ts
       (len, _) = List.maximumBy (compare `on` fst) us
       vs = map (\(l, t) -> t ++ replicate (len - l) "") us
@@ -30,3 +31,4 @@ table (Table ttle ts) =
   in H5.div ! "rTable" $ do
      hrow (ttle : replicate (len-1) "")
      mapM_ row vs
+-}

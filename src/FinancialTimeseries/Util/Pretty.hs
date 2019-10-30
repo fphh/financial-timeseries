@@ -24,3 +24,11 @@ instance Show a => Pretty (Vector (UTCTime, a)) where
 instance (Pretty a, Pretty b) => Pretty (a, b) where
   pretty (x, y) = "\n(\n" ++ pretty x ++ "\n,\n" ++ pretty y ++ "\n)\n"
 
+
+{-
+perc :: (Num a, Real a) => a -> String
+perc = Text.unpack . format (fixed 2 % fromString "%") . (100*)
+
+fmt :: (Num a, Real a) => a -> String
+fmt = Text.unpack . format (fixed 8)
+-}
