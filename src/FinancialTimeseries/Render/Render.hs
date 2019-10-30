@@ -4,8 +4,11 @@ module FinancialTimeseries.Render.Render where
 
 import Text.Blaze.Html (Html)
 
+import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
 import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), Yield(..), Price(..), AbsoluteDrawdown(..), RelativeDrawdown(..))
+
+import FinancialTimeseries.Type.Short (Short(..))
 
 class Render a where
   render :: [String] -> a -> Html
@@ -40,3 +43,9 @@ instance (Render a) => Render [a] where
 
 instance (Render a, Render b) => Render (a, b) where
   render xs (u, v) = render xs u <> render xs v
+
+instance (Render a) => Render (Long a) where
+  render xs (Long m) = render (xs ++ ["Long"]) m
+
+instance (Render a) => Render (Short a) where
+  render xs (Short m) = render (xs ++ ["Short"]) m
