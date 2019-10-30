@@ -57,23 +57,18 @@ samples sampLen xs = do
 
   return (zipWith (sample xs) as bs)
 
-{-
-data MonteCarlo a = MonteCarlo {
-  mcNotInv :: NotInvested a
-  , mcInv :: Invested a
-  } deriving (Show, Functor)
--}
 
 newtype MonteCarlo a = MonteCarlo {
-  unMonteCarlo :: (NotInvested a, Invested a)
+  unMonteCarlo :: a
   } deriving (Show, Functor)
 
+  
 mc ::
   (Num a, Functor longOrShort, Evaluate longOrShort, Distributive longOrShort) =>
   Config
   -> Equity a
   -> longOrShort (Yield (NotInvested [Vector (t, a)], Invested [Vector (t, a)]))
-  -> IO (longOrShort (MonteCarlo (Vector (Vector a))))
+  -> IO (longOrShort (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))
 mc cfg eqty xs = do
   ss <- samples (sampleLength cfg) xs
   let n = numberOfSamples cfg
