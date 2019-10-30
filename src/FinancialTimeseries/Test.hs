@@ -22,7 +22,8 @@ import FinancialTimeseries.Algorithm.MovingAverage (Window(..), movingAverage)
 import FinancialTimeseries.Algorithm.Statistics (ROI(..), Stats(count, meanROI, totalROI), statistics)
 
 import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), Price(..), Yield(..), partitionInvested)
-import FinancialTimeseries.Type.Evaluate (Long(..), long, evaluateInvested)
+import FinancialTimeseries.Type.Evaluate (long, evaluateInvested)
+import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.Segment (segments, Segment(..))
 import FinancialTimeseries.Type.Timeseries (Timeseries(..), slice)
 

@@ -30,8 +30,8 @@ import qualified Diagrams.TwoD as D2
 
 import Graphics.Svg.Core (renderBS)
 
-import FinancialTimeseries.Algorithm.MonteCarlo (MonteCarlo(..))
 import FinancialTimeseries.Render.HtmlReader (HtmlReader, Config(..), runHtmlReader)
+import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
 import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..))
 
 

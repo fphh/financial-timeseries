@@ -1,11 +1,5 @@
-{-# LANGUAGE DeriveFunctor #-}
-
-
 
 module FinancialTimeseries.Type.Evaluate where
-
-
-import Data.Distributive (Distributive, distribute)
 
 
 import Data.Time (UTCTime)
@@ -13,7 +7,8 @@ import Data.Time (UTCTime)
 import qualified Data.Vector as Vec
 import Data.Vector (Vector)
 
-
+import FinancialTimeseries.Type.Long (Long(..))
+import FinancialTimeseries.Type.Short (Short(..))
 import FinancialTimeseries.Type.Types(Invested(..), NotInvested(..), Equity(..), Yield(..), Price(..), swapYieldInvested, swapInvestedEquity)
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 import FinancialTimeseries.Util.Util (biliftA)
@@ -30,34 +25,11 @@ profit p =
       g = fmap (map f)
   in Yield . biliftA g g . unPrice
 
-
-
-newtype Long a = Long {
-  unLong :: a
-  } deriving (Show, Functor)
-
-instance Pretty a => Pretty (Long a) where
-  pretty (Long x) = "Long\n" ++ pretty x
-
-instance Distributive Long where
-  distribute = Long . fmap unLong
-
 long ::
   (Fractional a)
   => Price (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
   -> Long (Yield (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)]))
 long = Long . profit (\x0 xn -> xn/x0)
-
-
-newtype Short a = Short {
-  unShort :: a
-  } deriving (Show, Functor)
-
-instance Pretty a => Pretty (Short a) where
-  pretty (Short x) = "Short\n" ++ pretty x
-
-instance Distributive Short where
-  distribute = Short . fmap unShort
 
 
 short ::

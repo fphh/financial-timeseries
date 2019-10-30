@@ -2,9 +2,7 @@
 
 module FinancialTimeseries.Render.Chart where
 
-import Control.Monad (join)
-
-import Control.Monad.Trans.Reader (ReaderT(..), ask)
+import Control.Monad.Trans.Reader (ask)
 
 import Data.Function (on)
 
@@ -36,7 +34,7 @@ import Graphics.Svg.Core (renderBS)
 
 import FinancialTimeseries.Render.Css ((!))
 import FinancialTimeseries.Render.HtmlReader (HtmlReader, Config(..), runHtmlReader)
-import FinancialTimeseries.Type.Evaluate (Long(..))
+import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.Segment (Segment(..))
 import FinancialTimeseries.Type.Timeseries (Timeseries(..))
 import FinancialTimeseries.Type.Types (Equity(..), Price(..))
