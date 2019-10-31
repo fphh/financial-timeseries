@@ -59,24 +59,6 @@ type Evaluate longOrShort t a =
   -> longOrShort (Yield (NotInvested [Vector (t, a)], Invested [Vector (t, a)]))
   -> longOrShort (Equity (NotInvested (Vector (t, a)), Invested (Vector (t, a))))
 
-{-
-mc ::
-  (Num a, Functor longOrShort, Distributive longOrShort) =>
-  Evaluate longOrShort t a
-  -> Config
-  -> Equity a
-  -> longOrShort (Yield (NotInvested [Vector (t, a)], Invested [Vector (t, a)]))
-  -> IO (longOrShort (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))
-mc evaluate cfg eqty xs = do
-  ss <- samples (sampleLength cfg) xs
-  let n = numberOfSamples cfg
-      g = fmap (Vec.map snd)
-      ws = fmap distribute (distribute (map (fmap (fmap (biliftA g g)) . evaluate eqty) ss))
-      k = distribute . Vec.fromList . take n
-      h = biliftA k k . unzip
-  return (fmap (MonteCarlo . h . unEquity) ws)
--}
-
 mc ::
   (Num a, Functor longOrShort, Distributive longOrShort) =>
   Config
@@ -84,7 +66,6 @@ mc ::
   -> longOrShort (Yield (NotInvested [Vector (t, a)], Invested [Vector (t, a)]))
   -> IO (Evaluate longOrShort t a -> longOrShort (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))
 mc cfg eqty xs = do
-  print "i"
   ss <- samples (sampleLength cfg) xs
   let n = numberOfSamples cfg
       g = fmap (Vec.map snd)
