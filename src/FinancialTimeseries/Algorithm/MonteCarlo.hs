@@ -12,11 +12,9 @@ import qualified System.Random as R
 
 import qualified Statistics.Sample as Sample
 
-
-import FinancialTimeseries.Algorithm.Evaluate (Evaluate, evaluate)
 import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
 import FinancialTimeseries.Type.Table (Table(..))
-import FinancialTimeseries.Type.Types (Equity(..), Yield(..), AbsoluteDrawdown(..), RelativeDrawdown(..), Invested(..), NotInvested(..))
+import FinancialTimeseries.Type.Types (Equity(..), Yield(..), AbsoluteDrawdown(..), RelativeDrawdown(..), Invested(..), NotInvested(..), unswapYieldInvested)
 import FinancialTimeseries.Util.Util (biliftA)
 
 
@@ -56,14 +54,20 @@ samples sampLen xs = do
   return (zipWith (sample xs) as bs)
 
 
-  
+type Evaluate longOrShort t a =
+  Equity a
+  -> longOrShort (Yield (NotInvested [Vector (t, a)], Invested [Vector (t, a)]))
+  -> longOrShort (Equity (NotInvested (Vector (t, a)), Invested (Vector (t, a))))
+
+{-
 mc ::
-  (Num a, Functor longOrShort, Evaluate longOrShort, Distributive longOrShort) =>
-  Config
+  (Num a, Functor longOrShort, Distributive longOrShort) =>
+  Evaluate longOrShort t a
+  -> Config
   -> Equity a
   -> longOrShort (Yield (NotInvested [Vector (t, a)], Invested [Vector (t, a)]))
   -> IO (longOrShort (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))
-mc cfg eqty xs = do
+mc evaluate cfg eqty xs = do
   ss <- samples (sampleLength cfg) xs
   let n = numberOfSamples cfg
       g = fmap (Vec.map snd)
@@ -71,6 +75,23 @@ mc cfg eqty xs = do
       k = distribute . Vec.fromList . take n
       h = biliftA k k . unzip
   return (fmap (MonteCarlo . h . unEquity) ws)
+-}
+
+mc ::
+  (Num a, Functor longOrShort, Distributive longOrShort) =>
+  Config
+  -> Equity a
+  -> longOrShort (Yield (NotInvested [Vector (t, a)], Invested [Vector (t, a)]))
+  -> IO (Evaluate longOrShort t a -> longOrShort (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))
+mc cfg eqty xs = do
+  print "i"
+  ss <- samples (sampleLength cfg) xs
+  let n = numberOfSamples cfg
+      g = fmap (Vec.map snd)
+      ws evaluate = fmap distribute (distribute (map (fmap (fmap (biliftA g g)) . evaluate eqty) ss))
+      k = distribute . Vec.fromList . take n
+      h = biliftA k k . unzip
+  return (\e -> fmap (MonteCarlo . h . unEquity) (ws e))
 
 
 class Row a where
@@ -166,8 +187,8 @@ stats2list xs =
       pheaders = ["P(X < 0.5)", "P(X < 0.75)", "P(X < 1.0)", "P(X < 1.25)", "P(X < 1.5)", "P(X < 1.75)", "P(X < 2.0)"]
       mheaders = ["Max.", "Min.", "Mean", "StdDev."]
   in Table "Quantiles" qheaders (map (row . quantiles) xs)
-     : Table "Probabilities" pheaders (map (row . probabilities) xs)
      : Table "Moments" mheaders (map (row . moments) xs)
+     : Table "Probabilities" pheaders (map (row . probabilities) xs)
      : []
 
 
@@ -199,6 +220,13 @@ toStatistics f = fmap (fmap (stats2list . map mkStatistics) . distribute . map f
 
 yields ::
   (Fractional a, Real a) =>
+  MonteCarlo (NotInvested [Vector (Vector a)], Invested [Vector (Vector a)])
+  -> MonteCarlo (Yield (NotInvested [Table a], Invested [Table a]))
+yields = fmap (unswapYieldInvested . biliftA (toStatistics mcYields) (toStatistics mcYields))
+
+{-
+yields ::
+  (Fractional a, Real a) =>
   MonteCarlo [Vector (Vector a)] -> MonteCarlo (Yield [Table a])
 yields = toStatistics mcYields
 
@@ -211,3 +239,4 @@ relativeDrawdowns ::
   (Fractional a, Real a) =>
   MonteCarlo [Vector (Vector a)] -> MonteCarlo (RelativeDrawdown [Table a])
 relativeDrawdowns = toStatistics mcRelativeDrawdowns
+-}

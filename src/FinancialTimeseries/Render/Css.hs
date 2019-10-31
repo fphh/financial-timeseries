@@ -19,6 +19,7 @@ cssMap = Map.fromList
   : ("rTableCell" , "display: table-cell; padding:4px; padding-left:8px; border-bottom:1px solid #aaaaaa;")
   : ("rTableHead", "display: table-cell; background-color: #ddd; width:120px; padding:4px; padding-left:8px; border-top:1px solid #aaaaaa; border-bottom:1px solid #aaaaaa; font-weight: bold;")
   : ("monoFont", "font-family: monospace;")
+  : ("tables", "float: left; margin-bottom: 36px;")
   : []
 
 

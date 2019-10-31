@@ -30,6 +30,7 @@ library
                    , FinancialTimeseries.Render.Table
                    , FinancialTimeseries.Source.Alphavantage                   
                    , FinancialTimeseries.Test
+                   , FinancialTimeseries.Type.Fraction
                    , FinancialTimeseries.Type.Long
                    , FinancialTimeseries.Type.MonteCarlo
                    , FinancialTimeseries.Type.Segment

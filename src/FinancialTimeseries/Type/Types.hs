@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE RankNTypes #-}
 
 
 module FinancialTimeseries.Type.Types where
@@ -90,6 +91,11 @@ instance Pretty a => Pretty (RelativeDrawdown a) where
 instance Distributive RelativeDrawdown where
   distribute = RelativeDrawdown . fmap unRelativeDrawdown
 
+{-
+distributePair ::
+  (forall x. x -> f x) ->  (forall x. x -> f x) -> (forall x. f x -> x) -> f (a, b) -> (f a, f b)
+distributePair unUn1 unUn2 un = biliftA unUn1 unUn1 . un
+-}
 
 swapYieldInvested ::
   (Functor notInv, Functor inv) =>
@@ -97,6 +103,11 @@ swapYieldInvested ::
   -> (notInv (Yield a), inv (Yield a))
 swapYieldInvested = biliftA (fmap Yield) (fmap Yield) . unYield
 
+unswapYieldInvested ::
+  (Functor notInv, Functor inv) =>
+  (notInv (Yield a), inv (Yield a))
+  -> Yield (notInv a, inv a)
+unswapYieldInvested = Yield . biliftA (fmap unYield) (fmap unYield)
 
 swapInvestedEquity ::
   (Functor notInv, Functor inv) =>

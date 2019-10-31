@@ -20,7 +20,7 @@ table :: (Real a) => Table a -> Html
 table (Table ttle hs ts) =
   let us = map (\t -> (length t, t)) ts
       (len, _) = List.maximumBy (compare `on` fst) us
-      vs = map (\(l, t) -> map fmt t ++ replicate (len - l) "") us
+      vs = hs : map (\(l, t) -> map fmt t ++ replicate (len - l) "") us
 
       cell c = H5.div ! "rTableCell" $ H5.toHtml c
       row cs = H5.div ! "rTableRow" $ mapM_ cell cs

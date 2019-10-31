@@ -7,6 +7,7 @@ import Data.Time (UTCTime)
 import qualified Data.Vector as Vec
 import Data.Vector (Vector)
 
+import FinancialTimeseries.Type.Fraction (Fraction(..))
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.Short (Short(..))
 import FinancialTimeseries.Type.Types(Invested(..), NotInvested(..), Equity(..), Yield(..), Price(..), swapYieldInvested, swapInvestedEquity)
@@ -48,10 +49,30 @@ longEvaluate (Equity start) =
   in Equity . Vec.concat . go start . unYield
 
 
+longEvaluateFraction ::
+  (Num a) =>
+  Fraction a -> Equity a -> Yield [Vector (t, a)] -> Equity (Vector (t, a))
+longEvaluateFraction (Fraction frac) (Equity start) =
+  let go _ [] = []
+      go x (v:vs) =
+        let p = frac * x
+            q = (1-frac) * x
+            u = Vec.map (fmap ((q+) . (p*))) v
+        in u : go (snd (Vec.last u)) vs
+  in Equity . Vec.concat . go start . unYield
+ 
+
 class Evaluate longOrShort where
   evaluate ::
     (Num a, Functor notInv, Functor inv) =>
     Equity a
+    -> longOrShort (Yield (notInv [Vector (t, a)], inv [Vector (t, a)]))
+    -> longOrShort (Equity (notInv (Vector (t, a)), inv (Vector (t, a))))
+
+  evaluateFraction ::
+    (Num a, Functor notInv, Functor inv) =>
+    Fraction a
+    -> Equity a
     -> longOrShort (Yield (notInv [Vector (t, a)], inv [Vector (t, a)]))
     -> longOrShort (Equity (notInv (Vector (t, a)), inv (Vector (t, a))))
 
@@ -61,6 +82,10 @@ instance Evaluate Long where
     let eval = longEvaluate eqty
     in fmap (swapInvestedEquity . biliftA (fmap eval) (fmap eval) . swapYieldInvested)
 
+  evaluateFraction frac eqty =
+    let eval = longEvaluateFraction frac eqty
+    in fmap (swapInvestedEquity . biliftA (fmap eval) (fmap eval) . swapYieldInvested)
+   
 
 evaluateInvested ::
   (Num a, Functor notInv, Functor inv, Functor longOrShort, Evaluate longOrShort) =>
