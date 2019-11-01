@@ -3,9 +3,7 @@
 
 module FinancialTimeseries.Render.MonteCarlo where
 
-import Control.Monad (join)
-
-import Control.Monad.Trans.Reader (ReaderT(..), ask)
+import Control.Monad.Trans.Reader (ask)
 
 import qualified Data.Vector as Vec
 import Data.Vector (Vector)
