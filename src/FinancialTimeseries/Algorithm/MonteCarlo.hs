@@ -162,14 +162,14 @@ mkStatistics vs =
     }
 
 
-stats2list :: [Stats a] -> [Table a]
-stats2list xs =
+stats2list :: [String] -> [Stats a] -> [Table a]
+stats2list rhs xs =
   let qheaders = ["Q05", "Q25", "Q50", "Q75", "Q95"]
       pheaders = ["P(X < 0.5)", "P(X < 0.75)", "P(X < 1.0)", "P(X < 1.25)", "P(X < 1.5)", "P(X < 1.75)", "P(X < 2.0)"]
       mheaders = ["Max.", "Min.", "Mean", "StdDev."]
-  in Table "Quantiles" qheaders (map (row . quantiles) xs)
-     : Table "Moments" mheaders (map (row . moments) xs)
-     : Table "Probabilities" pheaders (map (row . probabilities) xs)
+  in Table "Quantiles" qheaders rhs (map (row . quantiles) xs)
+     : Table "Moments" mheaders rhs (map (row . moments) xs)
+     : Table "Probabilities" pheaders rhs (map (row . probabilities) xs)
      : []
 
 
@@ -196,14 +196,17 @@ mcRelativeDrawdowns =
 
 toStatistics ::
   (Functor g, Distributive f, Real a, Fractional a) =>
-  (Vector (Vector a) -> f (Vector a)) -> g [Vector (Vector a)] -> g (f [Table a])
-toStatistics f = fmap (fmap (stats2list . map mkStatistics) . distribute . map f)
+  [String]
+  -> (Vector (Vector a) -> f (Vector a))
+  -> g [Vector (Vector a)] -> g (f [Table a])
+toStatistics rhs f = fmap (fmap (stats2list rhs . map mkStatistics) . distribute . map f)
 
 yields ::
   (Fractional a, Real a) =>
-  MonteCarlo (NotInvested [Vector (Vector a)], Invested [Vector (Vector a)])
+  [String]
+  -> MonteCarlo (NotInvested [Vector (Vector a)], Invested [Vector (Vector a)])
   -> MonteCarlo (Yield (NotInvested [Table a], Invested [Table a]))
-yields = fmap (unswapYieldInvested . biliftA (toStatistics mcYields) (toStatistics mcYields))
+yields rhs = fmap (unswapYieldInvested . biliftA (toStatistics rhs mcYields) (toStatistics rhs mcYields))
 
 {-
 yields ::

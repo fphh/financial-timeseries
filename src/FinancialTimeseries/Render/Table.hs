@@ -17,10 +17,12 @@ import FinancialTimeseries.Util.Pretty (fmt)
 
 
 table :: (Real a) => Table a -> Html
-table (Table ttle hs ts) =
-  let us = map (\t -> (length t, t)) ts
+table (Table ttle chs rhs ts) =
+  let rhsXs = rhs ++ replicate (length ts - length rhs) ""
+
+      us = map (\t -> (length t, t)) ts
       (len, _) = List.maximumBy (compare `on` fst) us
-      vs = hs : map (\(l, t) -> map fmt t ++ replicate (len - l) "") us
+      vs = ("" : chs) : zipWith (\r (l, t) -> r : map fmt t ++ replicate (len - l - 1) "") rhsXs us
 
       cell c = H5.div ! "rTableCell" $ H5.toHtml c
       row cs = H5.div ! "rTableRow" $ mapM_ cell cs
@@ -29,6 +31,6 @@ table (Table ttle hs ts) =
       hrow cs = H5.div ! "rTableRow" $ mapM_ hcell cs
       
   in H5.div ! "rTable" $ do
-     hrow (ttle : replicate (len-1) "")
+     hrow (ttle : replicate len "")
      mapM_ row vs
 
