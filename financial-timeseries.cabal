@@ -31,6 +31,7 @@ library
                    , FinancialTimeseries.Source.Alphavantage                   
                    , FinancialTimeseries.Test
                    , FinancialTimeseries.Type.Fraction
+                   , FinancialTimeseries.Type.Labeled
                    , FinancialTimeseries.Type.Long
                    , FinancialTimeseries.Type.MonteCarlo
                    , FinancialTimeseries.Type.Segment
