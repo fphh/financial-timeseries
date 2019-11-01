@@ -1,10 +1,10 @@
 
 module FinancialTimeseries.Type.Table where
 
+import FinancialTimeseries.Type.Labeled (Labeled)
 
-data Table a = Table {
+data Table params a = Table {
   title :: String
-  , columnHeader :: [String]
   , rowHeader :: [String]
-  , table :: [[a]]
+  , table :: [Labeled params [a]]
   } deriving (Show)

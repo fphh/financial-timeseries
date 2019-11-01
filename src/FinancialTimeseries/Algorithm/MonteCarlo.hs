@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 
 module FinancialTimeseries.Algorithm.MonteCarlo where
 
@@ -12,7 +14,7 @@ import qualified System.Random as R
 
 import qualified Statistics.Sample as Sample
 
-import FinancialTimeseries.Type.Labeled (Labeled, label)
+import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
 import FinancialTimeseries.Type.Table (Table(..))
 import FinancialTimeseries.Type.Types (Equity(..), Yield(..), AbsoluteDrawdown(..), RelativeDrawdown(..), Invested(..), NotInvested(..), unswapYieldInvested)
@@ -31,7 +33,6 @@ sample xs as bs =
         let zs = Vec.fromList us
             len = Vec.length zs
         in map ((zs Vec.!) . (`mod` len)) rs
-        
   in fmap (fmap (biliftA (fmap (g as)) (fmap (g bs)))) xs
 
 
@@ -73,11 +74,11 @@ mc cfg eqty xs = do
       ws evaluate = fmap distribute (distribute (map (fmap (fmap (biliftA g g)) . evaluate eqty) ss))
       k = distribute . Vec.fromList . take n
       h = biliftA k k . unzip
-  return (\p e -> fmap (label p . MonteCarlo . h . unEquity) (ws e))
+  return (\p e -> fmap (Labeled p . MonteCarlo . h . unEquity) (ws e))
 
 
 class Row a where
-  row :: a x -> [x]
+  row :: params -> a x -> Labeled params [x]
 
 data Quantiles a = Quantiles {
   q05 :: !a
@@ -88,7 +89,7 @@ data Quantiles a = Quantiles {
   } deriving (Show)
 
 instance Row Quantiles where
-  row (Quantiles a b c d e) = [a, b, c, d, e]
+  row lbl (Quantiles a b c d e) = Labeled lbl [a, b, c, d, e]
 
 data Probabilities a = Probabilities {
   p0'50 :: !a
@@ -101,7 +102,7 @@ data Probabilities a = Probabilities {
   } deriving (Show)
 
 instance Row Probabilities where
-  row (Probabilities a b c d e f g) = [a, b, c, d, e, f, g]
+  row lbl (Probabilities a b c d e f g) = Labeled lbl [a, b, c, d, e, f, g]
 
 data Moments a = Moments {
   maxYield :: !a
@@ -111,7 +112,7 @@ data Moments a = Moments {
   } deriving (Show)
   
 instance Row Moments where
-  row (Moments a b c d) = [a, b, c, d]
+  row lbl (Moments a b c d) = Labeled lbl [a, b, c, d]
 
 data Stats a = Stats {
   quantiles :: Quantiles a
@@ -163,24 +164,54 @@ mkStatistics vs =
     }
 
 
-stats2list :: [Stats a] -> [Table a]
+stats2list :: [Labeled params (Stats a)] -> [Table params a]
 stats2list xs =
   let qheaders = ["Q05", "Q25", "Q50", "Q75", "Q95"]
       pheaders = ["P(X < 0.5)", "P(X < 0.75)", "P(X < 1.0)", "P(X < 1.25)", "P(X < 1.5)", "P(X < 1.75)", "P(X < 2.0)"]
       mheaders = ["Max.", "Min.", "Mean", "StdDev."]
-  in Table "Quantiles" qheaders [] (map (row . quantiles) xs)
-     : Table "Moments" mheaders [] (map (row . moments) xs)
-     : Table "Probabilities" pheaders [] (map (row . probabilities) xs)
+  in Table "Quantiles" qheaders (map (\(Labeled lbl x) -> row lbl (quantiles x)) xs)
+     : Table "Moments" mheaders (map (\(Labeled lbl x) -> row lbl (moments x)) xs)
+     : Table "Probabilities" pheaders (map (\(Labeled lbl x) -> row lbl (probabilities x)) xs)
      : []
 
 
 mcYields ::
   (Fractional a) =>
-  Vector (Vector a) -> Yield (Vector a)
-mcYields =
+  Labeled params (Vector (Vector a)) -> Yield (Labeled params (Vector a))
+mcYields (Labeled lbl xs) =
   Yield
-  . Vec.map (\vs -> Vec.last vs / Vec.head vs)
+  $ Labeled lbl
+  $ Vec.map (\vs -> Vec.last vs / Vec.head vs) xs
 
+toStatistics ::
+  (Distributive f, Real a, Fractional a) =>
+  (Labeled params (Vector (Vector a)) -> f (Labeled params (Vector a)))
+  -> [Labeled params (Vector (Vector a))] -> f [Table params a]
+toStatistics f = fmap (stats2list . map (fmap mkStatistics)) . distribute . map f
+
+
+yields ::
+  forall longOrShort params a.
+  (Distributive longOrShort, Real a, Fractional a) =>
+  [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
+  -> longOrShort (MonteCarlo (Yield (NotInvested [Table params a], Invested [Table params a])))
+yields ms =
+  let f (Labeled p x) = biliftA (distribute . Labeled p) (distribute . Labeled p) x
+      g = fmap (toStatistics mcYields) . distribute
+      h = unswapYieldInvested . biliftA g g . unzip . fmap f
+  in fmap (fmap h . distribute . map distribute) (distribute ms)
+
+
+{-
+yields ::
+  (Fractional a, Real a) =>
+  MonteCarlo (NotInvested [Vector (Vector a)], Invested [Vector (Vector a)])
+  -> MonteCarlo (Yield (NotInvested [Table a], Invested [Table a]))
+yields = fmap (unswapYieldInvested . biliftA (toStatistics mcYields) (toStatistics mcYields))
+-}
+
+
+{-
 mcAbsoluteDrawdowns ::
   (Ord a, Fractional a) =>
   Vector (Vector a) -> AbsoluteDrawdown (Vector a)
@@ -194,18 +225,8 @@ mcRelativeDrawdowns ::
 mcRelativeDrawdowns =
   RelativeDrawdown
   . Vec.map (\v -> Vec.minimum (Vec.zipWith (/) v (Vec.postscanl max 0 v)))
+-}
 
-toStatistics ::
-  (Functor g, Distributive f, Real a, Fractional a) =>
-  (Vector (Vector a) -> f (Vector a))
-  -> g [Vector (Vector a)] -> g (f [Table a])
-toStatistics f = fmap (fmap (stats2list . map mkStatistics) . distribute . map f)
-
-yields ::
-  (Fractional a, Real a) =>
-  MonteCarlo (NotInvested [Vector (Vector a)], Invested [Vector (Vector a)])
-  -> MonteCarlo (Yield (NotInvested [Table a], Invested [Table a]))
-yields = fmap (unswapYieldInvested . biliftA (toStatistics mcYields) (toStatistics mcYields))
 
 {-
 yields ::

@@ -12,17 +12,20 @@ import Text.Blaze.Html (Html)
 
 
 import FinancialTimeseries.Render.Css ((!))
+import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Table (Table(..))
-import FinancialTimeseries.Util.Pretty (fmt)
+import FinancialTimeseries.Util.Pretty (Pretty, pretty, fmt)
 
 
-table :: (Real a) => Table a -> Html
-table (Table ttle chs rhs ts) =
-  let rhsXs = rhs ++ replicate (length ts - length rhs) ""
-
-      us = map (\t -> (length t, t)) ts
+table :: (Real a, Pretty params) => Table params a -> Html
+table (Table ttle chs ts) =
+  let us = map (\l@(Labeled _ t) -> (length t, l)) ts
       (len, _) = List.maximumBy (compare `on` fst) us
-      vs = ("" : chs) : zipWith (\r (l, t) -> r : map fmt t ++ replicate (len - l - 1) "") rhsXs us
+
+      colHeaders = "" : chs
+      vs =
+        colHeaders
+        : map (\(l, Labeled lbl t) -> pretty lbl : map fmt t ++ replicate (len - l) "") us
 
       cell c = H5.div ! "rTableCell" $ H5.toHtml c
       row cs = H5.div ! "rTableRow" $ mapM_ cell cs
