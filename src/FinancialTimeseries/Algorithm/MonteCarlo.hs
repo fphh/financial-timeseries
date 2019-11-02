@@ -17,7 +17,8 @@ import qualified Statistics.Sample as Sample
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
 import FinancialTimeseries.Type.Table (Table(..))
-import FinancialTimeseries.Type.Types (Equity(..), Yield(..), AbsoluteDrawdown(..), RelativeDrawdown(..), Invested(..), NotInvested(..), DistributivePair, undistributePair)
+import FinancialTimeseries.Type.Types (Equity(..), Yield(..), AbsoluteDrawdown(..), RelativeDrawdown(..), Invested(..), NotInvested(..))
+import FinancialTimeseries.Util.DistributivePair (DistributivePair, undistributePair)
 import FinancialTimeseries.Util.Util (biliftA)
 
 
@@ -223,6 +224,15 @@ yields ::
   [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
   -> longOrShort (MonteCarlo (Yield (NotInvested [Table params a], Invested [Table params a])))
 yields = metrics mcYields
+
+absoluteDrawdowns ::
+  (Distributive longOrShort, Real a, Fractional a) =>
+  [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
+  -> longOrShort (MonteCarlo (AbsoluteDrawdown (NotInvested [Table params a], Invested [Table params a])))
+absoluteDrawdowns = metrics mcAbsoluteDrawdowns
+
+
+
 
 {-
 yields ::

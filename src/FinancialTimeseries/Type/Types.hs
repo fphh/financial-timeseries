@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE RankNTypes #-}
 
 
 module FinancialTimeseries.Type.Types where
@@ -10,6 +9,7 @@ import Data.Distributive (Distributive, distribute)
 
 import Data.Either (partitionEithers)
 
+import FinancialTimeseries.Util.DistributivePair (DistributivePair, distributePair, undistributePair, distPair, undistPair)
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 import FinancialTimeseries.Util.Util (biliftA)
 
@@ -47,6 +47,9 @@ instance Pretty a => Pretty (Equity a) where
 instance Distributive Equity where
   distribute = Equity . fmap unEquity
 
+instance DistributivePair Equity where
+  distributePair = distPair Equity unEquity
+  undistributePair = undistPair Equity unEquity
 
 newtype Yield a = Yield {
   unYield :: a
@@ -57,6 +60,10 @@ instance Pretty a => Pretty (Yield a) where
 
 instance Distributive Yield where
   distribute = Yield . fmap unYield
+
+instance DistributivePair Yield where
+  distributePair = distPair Yield unYield
+  undistributePair = undistPair Yield unYield
 
 
 newtype Price a = Price {
@@ -80,6 +87,10 @@ instance Pretty a => Pretty (AbsoluteDrawdown a) where
 instance Distributive AbsoluteDrawdown where
   distribute = AbsoluteDrawdown . fmap unAbsoluteDrawdown
 
+instance DistributivePair AbsoluteDrawdown where
+  distributePair = distPair AbsoluteDrawdown unAbsoluteDrawdown
+  undistributePair = undistPair AbsoluteDrawdown unAbsoluteDrawdown
+
 
 newtype RelativeDrawdown a = RelativeDrawdown {
   unRelativeDrawdown :: a
@@ -91,25 +102,10 @@ instance Pretty a => Pretty (RelativeDrawdown a) where
 instance Distributive RelativeDrawdown where
   distribute = RelativeDrawdown . fmap unRelativeDrawdown
 
-distPair ::
-  (forall x. x -> f x) -> (forall x. f x -> x) -> f (a, b) -> (f a, f b)
-distPair unUn un = biliftA unUn unUn . un
+instance DistributivePair RelativeDrawdown where
+  distributePair = distPair RelativeDrawdown unRelativeDrawdown
+  undistributePair = undistPair RelativeDrawdown unRelativeDrawdown
 
-undistPair ::
-  (forall x. x -> f x) -> (forall x. f x -> x) -> (f a, f b) -> f (a, b)
-undistPair unUn un = unUn . biliftA un un
-
-class DistributivePair f where
-  distributePair :: f (a, b) -> (f a, f b)
-  undistributePair :: (f a, f b) -> f (a, b)
-
-instance DistributivePair Yield where
-  distributePair = distPair Yield unYield
-  undistributePair = undistPair Yield unYield
-
-instance DistributivePair Equity where
-  distributePair = distPair Equity unEquity
-  undistributePair = undistPair Equity unEquity
 
 partitionInvested ::
   Price [Either (NotInvested a) (Invested b)] -> Price (NotInvested [a], Invested [b])
