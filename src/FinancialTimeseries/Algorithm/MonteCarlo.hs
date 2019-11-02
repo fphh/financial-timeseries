@@ -200,22 +200,20 @@ mcRelativeDrawdowns (Labeled lbl xs) =
   $ Labeled lbl
   $ Vec.map (\v -> Vec.minimum (Vec.zipWith (/) v (Vec.postscanl max 0 v))) xs
 
-toStatistics ::
+toTable ::
   (Distributive f, Real a, Fractional a) =>
   (Labeled params (Vector (Vector a)) -> f (Labeled params (Vector a)))
   -> [Labeled params (Vector (Vector a))] -> f [Table params a]
-toStatistics f = fmap (stats2list . map (fmap mkStatistics)) . distribute . map f
-
-type Metrics f params a = Labeled params (Vector (Vector a)) -> f (Labeled params (Vector a))
+toTable f = fmap (stats2list . map (fmap mkStatistics)) . distribute . map f
 
 metrics ::
   (Distributive longOrShort, Distributive f, DistributivePair f, Real a, Fractional a) =>
-  Metrics f params a
+  ([Labeled params (Vector (Vector a))] -> f [Table params a])
   -> [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
   -> longOrShort (MonteCarlo (f (NotInvested [Table params a], Invested [Table params a])))
-metrics metrics ms =
+metrics statistics ms =
   let f (Labeled p x) = biliftA (distribute . Labeled p) (distribute . Labeled p) x
-      g = fmap (toStatistics metrics) . distribute
+      g = fmap statistics . distribute
       h = undistributePair . biliftA (distribute . g) (distribute . g) . unzip . fmap f
   in fmap (fmap h . distribute . map distribute) (distribute ms)
 
@@ -223,56 +221,18 @@ yields ::
   (Distributive longOrShort, Real a, Fractional a) =>
   [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
   -> longOrShort (MonteCarlo (Yield (NotInvested [Table params a], Invested [Table params a])))
-yields = metrics mcYields
+yields = metrics (toTable mcYields)
 
 absoluteDrawdowns ::
   (Distributive longOrShort, Real a, Fractional a) =>
   [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
   -> longOrShort (MonteCarlo (AbsoluteDrawdown (NotInvested [Table params a], Invested [Table params a])))
-absoluteDrawdowns = metrics mcAbsoluteDrawdowns
-
-
-
-
-{-
-yields ::
-  (Fractional a, Real a) =>
-  MonteCarlo (NotInvested [Vector (Vector a)], Invested [Vector (Vector a)])
-  -> MonteCarlo (Yield (NotInvested [Table a], Invested [Table a]))
-yields = fmap (unswapYieldInvested . biliftA (toStatistics mcYields) (toStatistics mcYields))
--}
-
-
-{-
-mcAbsoluteDrawdowns ::
-  (Ord a, Fractional a) =>
-  Vector (Vector a) -> AbsoluteDrawdown (Vector a)
-mcAbsoluteDrawdowns =
-  AbsoluteDrawdown
-  . Vec.map (\vs -> Vec.minimum vs / Vec.head vs)
-
-mcRelativeDrawdowns ::
-  (Ord a, Fractional a) =>
-  Vector (Vector a) -> RelativeDrawdown (Vector a)
-mcRelativeDrawdowns =
-  RelativeDrawdown
-  . Vec.map (\v -> Vec.minimum (Vec.zipWith (/) v (Vec.postscanl max 0 v)))
--}
-
-
-{-
-yields ::
-  (Fractional a, Real a) =>
-  MonteCarlo [Vector (Vector a)] -> MonteCarlo (Yield [Table a])
-yields = toStatistics mcYields
-
-absoluteDrawdowns ::
-  (Fractional a, Real a) =>
-  MonteCarlo [Vector (Vector a)] -> MonteCarlo (AbsoluteDrawdown [Table a])
-absoluteDrawdowns = toStatistics mcAbsoluteDrawdowns
+absoluteDrawdowns = metrics (toTable mcAbsoluteDrawdowns)
 
 relativeDrawdowns ::
-  (Fractional a, Real a) =>
-  MonteCarlo [Vector (Vector a)] -> MonteCarlo (RelativeDrawdown [Table a])
-relativeDrawdowns = toStatistics mcRelativeDrawdowns
--}
+  (Distributive longOrShort, Real a, Fractional a) =>
+  [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
+  -> longOrShort (MonteCarlo (RelativeDrawdown (NotInvested [Table params a], Invested [Table params a])))
+relativeDrawdowns = metrics (toTable mcRelativeDrawdowns)
+
+
