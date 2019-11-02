@@ -208,9 +208,9 @@ toTable f = fmap (stats2list . map (fmap mkStatistics)) . distribute . map f
 
 metrics ::
   (Distributive longOrShort, Distributive f, DistributivePair f, Real a, Fractional a) =>
-  ([Labeled params (Vector (Vector a))] -> f [Table params a])
+  ([Labeled params (Vector (Vector a))] -> f [representation params a])
   -> [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
-  -> longOrShort (MonteCarlo (f (NotInvested [Table params a], Invested [Table params a])))
+  -> longOrShort (MonteCarlo (f (NotInvested [representation params a], Invested [representation params a])))
 metrics statistics ms =
   let f (Labeled p x) = biliftA (distribute . Labeled p) (distribute . Labeled p) x
       g = fmap statistics . distribute
