@@ -2,7 +2,7 @@
 module FinancialTimeseries.Algorithm.Evaluate where
 
 
-import Data.Distributive (Distributive)
+import Data.Distributive (Distributive, distribute)
 
 import Data.Time (UTCTime)
 
@@ -12,7 +12,7 @@ import Data.Vector (Vector)
 import FinancialTimeseries.Type.Fraction (Fraction(..))
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.Short (Short(..))
-import FinancialTimeseries.Type.Types(Invested(..), NotInvested(..), Equity(..), Yield(..), Price(..), swapYieldInvested, unswapInvestedEquity)
+import FinancialTimeseries.Type.Types(Invested(..), NotInvested(..), Equity(..), Yield(..), Price(..), distributePair, undistributePair)
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 import FinancialTimeseries.Util.Util (biliftA)
 
@@ -81,12 +81,12 @@ class Evaluate longOrShort where
 
 instance Evaluate Long where
   evaluate eqty =
-    let eval = longEvaluate eqty
-    in fmap (unswapInvestedEquity . biliftA (fmap eval) (fmap eval) . swapYieldInvested)
+    let eval = distribute . fmap (longEvaluate eqty) . distribute
+    in fmap (undistributePair . biliftA eval eval . distributePair)
 
   evaluateFraction frac eqty =
-    let eval = longEvaluateFraction frac eqty
-    in fmap (unswapInvestedEquity . biliftA (fmap eval) (fmap eval) . swapYieldInvested)
+    let eval = distribute . fmap (longEvaluateFraction frac eqty) . distribute
+    in fmap (undistributePair . biliftA eval eval . distributePair)
    
 
 

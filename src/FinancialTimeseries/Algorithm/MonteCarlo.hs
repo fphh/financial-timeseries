@@ -17,7 +17,7 @@ import qualified Statistics.Sample as Sample
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
 import FinancialTimeseries.Type.Table (Table(..))
-import FinancialTimeseries.Type.Types (Equity(..), Yield(..), AbsoluteDrawdown(..), RelativeDrawdown(..), Invested(..), NotInvested(..), unswapYieldInvested)
+import FinancialTimeseries.Type.Types (Equity(..), Yield(..), AbsoluteDrawdown(..), RelativeDrawdown(..), Invested(..), NotInvested(..), DistributivePair, undistributePair)
 import FinancialTimeseries.Util.Util (biliftA)
 
 
@@ -207,17 +207,22 @@ toStatistics f = fmap (stats2list . map (fmap mkStatistics)) . distribute . map 
 
 type Metrics f params a = Labeled params (Vector (Vector a)) -> f (Labeled params (Vector a))
 
-yields ::
-  (Distributive longOrShort, Real a, Fractional a) =>
-  Metrics Yield params a
+metrics ::
+  (Distributive longOrShort, Distributive f, DistributivePair f, Real a, Fractional a) =>
+  Metrics f params a
   -> [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
-  -> longOrShort (MonteCarlo (Yield (NotInvested [Table params a], Invested [Table params a])))
-yields metrics ms =
+  -> longOrShort (MonteCarlo (f (NotInvested [Table params a], Invested [Table params a])))
+metrics metrics ms =
   let f (Labeled p x) = biliftA (distribute . Labeled p) (distribute . Labeled p) x
       g = fmap (toStatistics metrics) . distribute
-      h = unswapYieldInvested . biliftA g g . unzip . fmap f
+      h = undistributePair . biliftA (distribute . g) (distribute . g) . unzip . fmap f
   in fmap (fmap h . distribute . map distribute) (distribute ms)
 
+yields ::
+  (Distributive longOrShort, Real a, Fractional a) =>
+  [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
+  -> longOrShort (MonteCarlo (Yield (NotInvested [Table params a], Invested [Table params a])))
+yields = metrics mcYields
 
 {-
 yields ::
