@@ -2,6 +2,8 @@
 module FinancialTimeseries.Algorithm.Evaluate where
 
 
+import Data.Distributive (Distributive)
+
 import Data.Time (UTCTime)
 
 import qualified Data.Vector as Vec
@@ -10,7 +12,7 @@ import Data.Vector (Vector)
 import FinancialTimeseries.Type.Fraction (Fraction(..))
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.Short (Short(..))
-import FinancialTimeseries.Type.Types(Invested(..), NotInvested(..), Equity(..), Yield(..), Price(..), swapYieldInvested, swapInvestedEquity)
+import FinancialTimeseries.Type.Types(Invested(..), NotInvested(..), Equity(..), Yield(..), Price(..), swapYieldInvested, unswapInvestedEquity)
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 import FinancialTimeseries.Util.Util (biliftA)
 
@@ -64,13 +66,13 @@ longEvaluateFraction (Fraction frac) (Equity start) =
 
 class Evaluate longOrShort where
   evaluate ::
-    (Num a, Functor notInv, Functor inv) =>
+    (Num a, Distributive notInv, Distributive inv) =>
     Equity a
     -> longOrShort (Yield (notInv [Vector (t, a)], inv [Vector (t, a)]))
     -> longOrShort (Equity (notInv (Vector (t, a)), inv (Vector (t, a))))
 
   evaluateFraction ::
-    (Num a, Functor notInv, Functor inv) =>
+    (Num a, Distributive notInv, Distributive inv) =>
     Fraction a
     -> Equity a
     -> longOrShort (Yield (notInv [Vector (t, a)], inv [Vector (t, a)]))
@@ -80,23 +82,23 @@ class Evaluate longOrShort where
 instance Evaluate Long where
   evaluate eqty =
     let eval = longEvaluate eqty
-    in fmap (swapInvestedEquity . biliftA (fmap eval) (fmap eval) . swapYieldInvested)
+    in fmap (unswapInvestedEquity . biliftA (fmap eval) (fmap eval) . swapYieldInvested)
 
   evaluateFraction frac eqty =
     let eval = longEvaluateFraction frac eqty
-    in fmap (swapInvestedEquity . biliftA (fmap eval) (fmap eval) . swapYieldInvested)
+    in fmap (unswapInvestedEquity . biliftA (fmap eval) (fmap eval) . swapYieldInvested)
    
 
+
 evaluateInvested ::
-  (Num a, Functor notInv, Functor inv, Functor longOrShort, Evaluate longOrShort) =>
+  (Num a, Distributive notInv, Distributive inv, Functor longOrShort, Evaluate longOrShort) =>
   Equity a
   -> longOrShort (Yield (notInv [Vector (u, a)], inv [Vector (u, a)]))
   -> longOrShort (Equity (inv (Vector (u, a))))
 evaluateInvested eqty = fmap (fmap snd) . evaluate eqty
 
-
 evaluateNotInvested ::
-  (Num a, Functor notInv, Functor inv, Functor longOrShort, Evaluate longOrShort) =>
+  (Num a, Distributive notInv, Distributive inv, Functor longOrShort, Evaluate longOrShort) =>
   Equity a
   -> longOrShort (Yield (notInv [Vector (u, a)], inv [Vector (u, a)]))
   -> longOrShort (Equity (notInv (Vector (u, a))))

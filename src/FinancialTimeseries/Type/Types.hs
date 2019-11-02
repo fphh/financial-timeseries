@@ -91,30 +91,44 @@ instance Pretty a => Pretty (RelativeDrawdown a) where
 instance Distributive RelativeDrawdown where
   distribute = RelativeDrawdown . fmap unRelativeDrawdown
 
-{-
 distributePair ::
-  (forall x. x -> f x) ->  (forall x. x -> f x) -> (forall x. f x -> x) -> f (a, b) -> (f a, f b)
-distributePair unUn1 unUn2 un = biliftA unUn1 unUn1 . un
--}
+  (forall x. x -> f x) -> (forall x. f x -> x) -> f (a, b) -> (f a, f b)
+distributePair unUn un = biliftA unUn unUn . un
+
+undistributePair ::
+  (forall x. x -> f x) -> (forall x. f x -> x) -> (f a, f b) -> f (a, b)
+undistributePair unUn un = unUn . biliftA un un
+
+class DistributePair f where
+  swap :: f (a, b) -> (f a, f b)
+  unswap :: (f a, f b) -> f (a, b)
 
 swapYieldInvested ::
-  (Functor notInv, Functor inv) =>
+  (Distributive notInv, Distributive inv) =>
   Yield (notInv a, inv a)
   -> (notInv (Yield a), inv (Yield a))
-swapYieldInvested = biliftA (fmap Yield) (fmap Yield) . unYield
+swapYieldInvested = biliftA distribute distribute . swap 
 
 unswapYieldInvested ::
   (Functor notInv, Functor inv) =>
   (notInv (Yield a), inv (Yield a))
   -> Yield (notInv a, inv a)
-unswapYieldInvested = Yield . biliftA (fmap unYield) (fmap unYield)
+unswapYieldInvested = unswap . biliftA distribute distribute
 
-swapInvestedEquity ::
-  (Functor notInv, Functor inv) =>
+instance DistributePair Yield where
+  swap = distributePair Yield unYield
+  unswap = undistributePair Yield unYield
+
+unswapInvestedEquity ::
+  (Distributive notInv, Distributive inv) =>
   (notInv (Equity a), inv (Equity a))
   -> Equity (notInv a, inv a)
-swapInvestedEquity = Equity . biliftA (fmap unEquity) (fmap unEquity)
+unswapInvestedEquity = unswap . biliftA distribute distribute
 
+
+instance DistributePair Equity where
+  swap = distributePair Equity unEquity
+  unswap = undistributePair Equity unEquity
 
 partitionInvested ::
   Price [Either (NotInvested a) (Invested b)] -> Price (NotInvested [a], Invested [b])

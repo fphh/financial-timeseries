@@ -183,21 +183,38 @@ mcYields (Labeled lbl xs) =
   $ Labeled lbl
   $ Vec.map (\vs -> Vec.last vs / Vec.head vs) xs
 
+mcAbsoluteDrawdowns ::
+  (Ord a, Fractional a) =>
+  Labeled params (Vector (Vector a)) -> AbsoluteDrawdown (Labeled params (Vector a))
+mcAbsoluteDrawdowns (Labeled lbl xs) =
+  AbsoluteDrawdown
+  $ Labeled lbl
+  $ Vec.map (\vs -> Vec.minimum vs / Vec.head vs) xs
+
+mcRelativeDrawdowns ::
+  (Ord a, Fractional a) =>
+  Labeled params (Vector (Vector a)) -> RelativeDrawdown (Labeled params (Vector a))
+mcRelativeDrawdowns (Labeled lbl xs) =
+  RelativeDrawdown
+  $ Labeled lbl
+  $ Vec.map (\v -> Vec.minimum (Vec.zipWith (/) v (Vec.postscanl max 0 v))) xs
+
 toStatistics ::
   (Distributive f, Real a, Fractional a) =>
   (Labeled params (Vector (Vector a)) -> f (Labeled params (Vector a)))
   -> [Labeled params (Vector (Vector a))] -> f [Table params a]
 toStatistics f = fmap (stats2list . map (fmap mkStatistics)) . distribute . map f
 
+type Metrics f params a = Labeled params (Vector (Vector a)) -> f (Labeled params (Vector a))
 
 yields ::
-  forall longOrShort params a.
   (Distributive longOrShort, Real a, Fractional a) =>
-  [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
+  Metrics Yield params a
+  -> [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
   -> longOrShort (MonteCarlo (Yield (NotInvested [Table params a], Invested [Table params a])))
-yields ms =
+yields metrics ms =
   let f (Labeled p x) = biliftA (distribute . Labeled p) (distribute . Labeled p) x
-      g = fmap (toStatistics mcYields) . distribute
+      g = fmap (toStatistics metrics) . distribute
       h = unswapYieldInvested . biliftA g g . unzip . fmap f
   in fmap (fmap h . distribute . map distribute) (distribute ms)
 
