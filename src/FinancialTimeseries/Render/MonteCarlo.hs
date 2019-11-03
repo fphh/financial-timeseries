@@ -86,8 +86,10 @@ renderHelper (MonteCarlo (NotInvested nis, Invested is)) = do
 
 render ::
   (E.PlotValue a) =>
-  Config -> MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a))) -> Html
-render config mc = runHtmlReader (renderHelper mc) config
+  Config
+  -> MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))
+  -> Html
+render config = runHtmlReader config . renderHelper
 
 
 
@@ -118,4 +120,4 @@ renderPDFHelper pdfs = do
 renderPDF ::
   (E.PlotValue a) =>
   Config -> [(String, Vector (Double, a))] -> Html
-renderPDF config pdfs = runHtmlReader (renderPDFHelper pdfs) config
+renderPDF config = runHtmlReader config . renderPDFHelper

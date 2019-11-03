@@ -20,7 +20,7 @@ import qualified Graphics.Rendering.Chart.Easy as E
 
 import FinancialTimeseries.Render.Chart (pdfChart)
 import FinancialTimeseries.Render.Css ((!))
-import FinancialTimeseries.Render.HtmlReader (HtmlReader, Config, runHtmlReader)
+import FinancialTimeseries.Render.HtmlReader (HtmlReader, Config)
 import FinancialTimeseries.Render.MonteCarlo (renderMC)
 import FinancialTimeseries.Render.Table (table)
 import FinancialTimeseries.Type.Chart (Chart(..))
@@ -38,9 +38,8 @@ import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 class Render a where
   render :: [String] -> a -> HtmlReader Html
 
-
-renderHtml :: Config -> HtmlReader Html -> Html
-renderHtml config html = runHtmlReader html config
+display :: (Render a) => a -> HtmlReader Html
+display = render []
 
 instance (Render a) => Render (MonteCarlo a) where
   render xs (MonteCarlo m) = render (xs ++ ["MonteCarlo"]) m

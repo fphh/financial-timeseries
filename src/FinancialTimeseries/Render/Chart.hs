@@ -88,7 +88,7 @@ renderHelper res vs =
 render2 ::
   (E.PlotValue a, Fractional a) =>
   Config -> Equity (Vector (UTCTime, a)) -> [Timeseries a] -> Html
-render2 config res vs = runHtmlReader (renderHelper res vs) config
+render2 config res vs = runHtmlReader config (renderHelper res vs)
 
 
 chart ::

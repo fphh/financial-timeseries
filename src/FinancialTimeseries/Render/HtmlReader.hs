@@ -30,14 +30,18 @@ mkConfig w h = do
     }
 
 defConfig :: IO Config
-defConfig = mkConfig 1200 1200
+defConfig = mkConfig 600 600
 
 
 
 type HtmlReader a = ReaderT Config MarkupM a
 
-
+{-
 runHtmlReader ::
   HtmlReader Html -> Config -> Html
 runHtmlReader htmlReader = join . runReaderT htmlReader
+-}
 
+
+runHtmlReader :: Config -> HtmlReader Html -> Html
+runHtmlReader cfg = join . flip runReaderT cfg
