@@ -34,10 +34,13 @@ import Graphics.Svg.Core (renderBS)
 
 import FinancialTimeseries.Render.Css ((!))
 import FinancialTimeseries.Render.HtmlReader (HtmlReader, Config(..), runHtmlReader)
+import FinancialTimeseries.Type.Chart (Chart(..))
+import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.Segment (Segment(..))
 import FinancialTimeseries.Type.Timeseries (Timeseries(..))
 import FinancialTimeseries.Type.Types (Equity(..), Price(..))
+import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
 
 
@@ -94,14 +97,23 @@ chart ::
 chart es vs config = render2 config es vs
 
 
-{-
-class Chart longOrShort where
-  chart ::
-    (E.PlotValue a, Fractional a) =>
-    Equity (Vector (UTCTime, a)) -> [Timeseries a] -> Config -> Html
+pdfChart :: (E.PlotValue a, Pretty params) => Chart params a -> HtmlReader Html
+pdfChart (Chart ttl cs) = do
+  cfg <- ask
+  
+  let (w, h) = chartSize cfg
+      env = denv cfg
+      rr = BS.pack [99,108,105,112,45,112,97,116,104,61]
+      opts = DSVG.SVGOptions (D2.dims2D w h) Nothing Text.empty [] True
 
-instance Chart Long where
-  chart es vs config = render2 config es vs
-    -- H5.h2 $ H5.span $ H5.toHtml (Text.pack "Long")
-    -- render2 config es vs
--}
+  return
+    $ H5.preEscapedToHtml
+    $ BSL.unpack
+    $ BSS.replace rr BSL.empty 
+    $ renderBS
+    $ DP.renderDia DSVG.SVG opts
+    $ (\(d, _, _) -> d)
+    $ D.runBackendWithGlyphs env
+    $ flip R.render (w, h)
+    $ R.toRenderable
+    $ mapM_ (\(Labeled title xs) -> E.plot (E.line (pretty title) [Vec.toList xs])) cs

@@ -14,6 +14,7 @@ import qualified System.Random as R
 
 import qualified Statistics.Sample as Sample
 
+import FinancialTimeseries.Type.Chart (Chart(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
 import FinancialTimeseries.Type.Table (Table(..))
@@ -79,7 +80,7 @@ mc cfg eqty xs = do
 
 
 class Row a where
-  row :: params -> a x -> Labeled params [x]
+  row :: a x -> [x]
 
 data Quantiles a = Quantiles {
   q05 :: !a
@@ -90,7 +91,7 @@ data Quantiles a = Quantiles {
   } deriving (Show)
 
 instance Row Quantiles where
-  row lbl (Quantiles a b c d e) = Labeled lbl [a, b, c, d, e]
+  row (Quantiles a b c d e) = [a, b, c, d, e]
 
 data Probabilities a = Probabilities {
   p0'50 :: !a
@@ -103,7 +104,7 @@ data Probabilities a = Probabilities {
   } deriving (Show)
 
 instance Row Probabilities where
-  row lbl (Probabilities a b c d e f g) = Labeled lbl [a, b, c, d, e, f, g]
+  row (Probabilities a b c d e f g) = [a, b, c, d, e, f, g]
 
 data Moments a = Moments {
   maxYield :: !a
@@ -113,7 +114,7 @@ data Moments a = Moments {
   } deriving (Show)
   
 instance Row Moments where
-  row lbl (Moments a b c d) = Labeled lbl [a, b, c, d]
+  row (Moments a b c d) = [a, b, c, d]
 
 data Stats a = Stats {
   quantiles :: Quantiles a
@@ -170,11 +171,29 @@ stats2list xs =
   let qheaders = ["Q05", "Q25", "Q50", "Q75", "Q95"]
       pheaders = ["P(X < 0.5)", "P(X < 0.75)", "P(X < 1.0)", "P(X < 1.25)", "P(X < 1.5)", "P(X < 1.75)", "P(X < 2.0)"]
       mheaders = ["Max.", "Min.", "Mean", "StdDev."]
-  in Table "Quantiles" qheaders (map (\(Labeled lbl x) -> row lbl (quantiles x)) xs)
-     : Table "Moments" mheaders (map (\(Labeled lbl x) -> row lbl (moments x)) xs)
-     : Table "Probabilities" pheaders (map (\(Labeled lbl x) -> row lbl (probabilities x)) xs)
+  in Table "Quantiles" qheaders (map (fmap (row . quantiles)) xs)
+     : Table "Moments" mheaders (map (fmap (row . moments)) xs)
+     : Table "Probabilities" pheaders (map (fmap (row . probabilities)) xs)
      : []
 
+toTable ::
+  (Distributive f, Real a, Fractional a) =>
+  (Labeled params (Vector (Vector a)) -> f (Labeled params (Vector a)))
+  -> [Labeled params (Vector (Vector a))]
+  -> f [Table params a]
+toTable f = fmap (stats2list . map (fmap mkStatistics)) . distribute . map f
+
+
+
+stats2pdfChart :: [Labeled params (Stats a)] -> Chart params a
+stats2pdfChart = Chart "pdf" . map (fmap pdf)
+
+toChart ::
+  (Distributive f, Fractional a, Real a) =>
+  (Labeled params (Vector (Vector a)) -> f (Labeled params (Vector a)))
+  -> [Labeled params (Vector (Vector a))]
+  -> f (Chart params a)
+toChart f = fmap (stats2pdfChart . map (fmap mkStatistics)) . distribute . map f
 
 mcYields ::
   (Fractional a) =>
@@ -200,17 +219,11 @@ mcRelativeDrawdowns (Labeled lbl xs) =
   $ Labeled lbl
   $ Vec.map (\v -> Vec.minimum (Vec.zipWith (/) v (Vec.postscanl max 0 v))) xs
 
-toTable ::
-  (Distributive f, Real a, Fractional a) =>
-  (Labeled params (Vector (Vector a)) -> f (Labeled params (Vector a)))
-  -> [Labeled params (Vector (Vector a))] -> f [Table params a]
-toTable f = fmap (stats2list . map (fmap mkStatistics)) . distribute . map f
-
 metrics ::
   (Distributive longOrShort, Distributive f, DistributivePair f, Real a, Fractional a) =>
-  ([Labeled params (Vector (Vector a))] -> f [representation params a])
+  ([Labeled params (Vector (Vector a))] -> f (chart params a, [table params a]))
   -> [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
-  -> longOrShort (MonteCarlo (f (NotInvested [representation params a], Invested [representation params a])))
+  -> longOrShort (MonteCarlo (f (NotInvested (chart params a, [table params a]), Invested (chart params a, [table params a]))))
 metrics statistics ms =
   let f (Labeled p x) = biliftA (distribute . Labeled p) (distribute . Labeled p) x
       g = fmap statistics . distribute
@@ -220,19 +233,18 @@ metrics statistics ms =
 yields ::
   (Distributive longOrShort, Real a, Fractional a) =>
   [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
-  -> longOrShort (MonteCarlo (Yield (NotInvested [Table params a], Invested [Table params a])))
-yields = metrics (toTable mcYields)
+  -> longOrShort (MonteCarlo (Yield (NotInvested (Chart params a, [Table params a]), Invested (Chart params a, [Table params a]))))
+yields = metrics (undistributePair . (\x -> (toChart mcYields x, toTable mcYields x)))
+
 
 absoluteDrawdowns ::
   (Distributive longOrShort, Real a, Fractional a) =>
   [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
-  -> longOrShort (MonteCarlo (AbsoluteDrawdown (NotInvested [Table params a], Invested [Table params a])))
-absoluteDrawdowns = metrics (toTable mcAbsoluteDrawdowns)
+  -> longOrShort (MonteCarlo (AbsoluteDrawdown (NotInvested (Chart params a, [Table params a]), Invested (Chart params a, [Table params a]))))
+absoluteDrawdowns = metrics (undistributePair . (\x -> (toChart mcAbsoluteDrawdowns x, toTable mcAbsoluteDrawdowns x)))
 
 relativeDrawdowns ::
   (Distributive longOrShort, Real a, Fractional a) =>
   [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
-  -> longOrShort (MonteCarlo (RelativeDrawdown (NotInvested [Table params a], Invested [Table params a])))
-relativeDrawdowns = metrics (toTable mcRelativeDrawdowns)
-
-
+  -> longOrShort (MonteCarlo (RelativeDrawdown (NotInvested (Chart params a, [Table params a]), Invested (Chart params a, [Table params a]))))
+relativeDrawdowns = metrics (undistributePair . (\x -> (toChart mcRelativeDrawdowns x, toTable mcRelativeDrawdowns x)))

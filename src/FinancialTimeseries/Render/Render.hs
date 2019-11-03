@@ -17,10 +17,13 @@ import Text.Blaze.Html (Html)
 
 import qualified Graphics.Rendering.Chart.Easy as E
 
+
+import FinancialTimeseries.Render.Chart (pdfChart)
 import FinancialTimeseries.Render.Css ((!))
 import FinancialTimeseries.Render.HtmlReader (HtmlReader, Config, runHtmlReader)
 import FinancialTimeseries.Render.MonteCarlo (renderMC)
 import FinancialTimeseries.Render.Table (table)
+import FinancialTimeseries.Type.Chart (Chart(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
@@ -80,10 +83,17 @@ instance (E.PlotValue a) => Render (Vector (Vector a)) where
     let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
     in fmap (h <>) (renderMC vs)
 
+instance (Pretty params, Render a) => Render (Labeled params a) where
+  render xs (Labeled lbl ys) = render (xs ++ [pretty lbl]) ys
+
 instance (Real a, Pretty params) => Render [Table params a] where
   render xs ts =
     let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
     in return (h <> (H5.div ! "tables" $ mapM_ table ts))
 
-instance (Pretty params, Render a) => Render (Labeled params a) where
-  render xs (Labeled lbl ys) = render (xs ++ [pretty lbl]) ys
+
+instance (Real a, E.PlotValue a, Pretty params) => Render (Chart params a) where
+  render xs c =
+    let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
+    in fmap (h <>) (pdfChart c)
+

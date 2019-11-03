@@ -30,7 +30,7 @@ mkConfig w h = do
     }
 
 defConfig :: IO Config
-defConfig = mkConfig 1600 400
+defConfig = mkConfig 1200 1200
 
 
 
