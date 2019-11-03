@@ -9,7 +9,6 @@ import qualified Data.Text as Text
 import qualified Text.Blaze.Html5 as H5
 import Text.Blaze.Html (Html)
 
-import FinancialTimeseries.Render.Css ((!))
 import FinancialTimeseries.Render.HtmlReader (HtmlReader)
 
 

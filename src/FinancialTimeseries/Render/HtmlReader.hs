@@ -1,8 +1,9 @@
-
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module FinancialTimeseries.Render.HtmlReader where
 
-import Control.Monad (join)
+import Control.Monad (join, liftM2)
 
 import Control.Monad.Trans.Reader (ReaderT(..))
 
@@ -36,12 +37,12 @@ defConfig = mkConfig 600 600
 
 type HtmlReader a = ReaderT Config MarkupM a
 
-{-
-runHtmlReader ::
-  HtmlReader Html -> Config -> Html
-runHtmlReader htmlReader = join . runReaderT htmlReader
--}
+instance (Semigroup a) => Semigroup (HtmlReader a) where
+  a <> b = liftM2 (<>) a b
 
+instance (Monoid a) => Monoid (HtmlReader a) where
+  mempty = return mempty
 
 runHtmlReader :: Config -> HtmlReader Html -> Html
 runHtmlReader cfg = join . flip runReaderT cfg
+

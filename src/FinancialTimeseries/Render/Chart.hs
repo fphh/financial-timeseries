@@ -85,6 +85,7 @@ renderHelper res vs =
   in renderChart (concatMap f vs ++ [("Equity", [Vec.toList (unEquity res)])])
 
 
+
 render2 ::
   (E.PlotValue a, Fractional a) =>
   Config -> Equity (Vector (UTCTime, a)) -> [Timeseries a] -> Html

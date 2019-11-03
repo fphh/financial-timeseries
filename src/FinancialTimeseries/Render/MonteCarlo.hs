@@ -82,8 +82,6 @@ renderHelper (MonteCarlo (NotInvested nis, Invested is)) = do
     H5.h2 (H5.toHtml (Text.pack "Monte Carlo (Not Invested)"))
     chartNotInv
 
-  
-
 render ::
   (E.PlotValue a) =>
   Config
