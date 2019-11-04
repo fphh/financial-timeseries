@@ -42,51 +42,6 @@ import FinancialTimeseries.Type.Timeseries (Timeseries(..))
 import FinancialTimeseries.Type.Types (Equity(..), Price(..))
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
-
-{-
-renderChart :: (E.PlotValue a) => [(String, [[(UTCTime, a)]])] -> HtmlReader Html
-renderChart vs = do
-  cfg <- ask
-  
-  let (w, h) = chartSize cfg
-      env = denv cfg
-      rr = BS.pack [99,108,105,112,45,112,97,116,104,61]
-      opts = DSVG.SVGOptions (D2.dims2D w h) Nothing Text.empty [] True
-
-  return
-    $ H5.preEscapedToHtml
-    $ BSL.unpack
-    $ BSS.replace rr BSL.empty 
-    $ renderBS
-    $ DP.renderDia DSVG.SVG opts
-    $ (\(d, _, _) -> d)
-    $ D.runBackendWithGlyphs env
-    $ flip R.render (w, h)
-    $ R.toRenderable $ do
-    mapM_ (\(title, xs) -> E.plot (E.line title xs)) vs
--}
-
-{-
-chart ::
-  (E.PlotValue a, Fractional a) =>
-  Equity (Vector (UTCTime, a)) -> [Timeseries a] -> HtmlReader Html
-chart res vs =
-  let f (Timeseries nam (Price ts) segs as) =
-        let (_, mi) = Vec.minimumBy (compare `on` snd) ts
-            (_, ma) = Vec.maximumBy (compare `on` snd) ts
-            m = mi + (ma - mi) * 0.8
-            spikeLow = m - (ma - mi) * 0.1
-            spikeHigh = m + (ma - mi) * 0.1
-            g (Segment a b) =
-              let (t0, _) = ts Vec.! a
-                  (tn, _) = ts Vec.! b
-              in [(t0,spikeLow), (t0, spikeHigh), (t0, m), (tn, m), (tn, spikeLow), (tn, spikeHigh)]
-        in [(nam, [Vec.toList ts]), (nam ++ " (inv. / not inv.)", map g segs)]
-           ++ map (fmap ((:[]) . Vec.toList . unPrice)) as
-                  
-  in renderChart (concatMap f vs ++ [("Equity", [Vec.toList (unEquity res)])])
--}
-
 chart ::
   (E.PlotValue a, Fractional a) =>
   Equity (Vector (UTCTime, a)) -> [Timeseries a] -> Chart String UTCTime a
@@ -104,12 +59,12 @@ chart res vs =
               in Vec.fromList ys
         in [Labeled nam [ts], Labeled (nam ++ " (inv. / not inv.)") (map g segs)]
            ++ map (\(str, xs) -> Labeled str [unPrice xs]) as
-  in Chart "Timeseries" (concatMap f vs)
+  in Chart "Timeseries" (concatMap f vs ++ [Labeled "Equity" [unEquity res]])
 
-pdfChart ::
+renderChart ::
   (E.PlotValue a, E.PlotValue x, Pretty params) =>
   Chart params x a -> HtmlReader Html
-pdfChart (Chart ttl cs) = do
+renderChart (Chart ttl cs) = do
   cfg <- ask
   
   let (w, h) = chartSize cfg
@@ -129,17 +84,3 @@ pdfChart (Chart ttl cs) = do
     $ R.toRenderable
     $ mapM_ (\(Labeled title xs) -> E.plot (E.line (pretty title) (map Vec.toList xs))) cs
 
-
-
-{-
-render2 ::
-  (E.PlotValue a, Fractional a) =>
-  Config -> Equity (Vector (UTCTime, a)) -> [Timeseries a] -> Html
-render2 config res vs = runHtmlReader config (renderHelper res vs)
-
-
-chart ::
-  (E.PlotValue a, Fractional a) =>
-  Config -> Equity (Vector (UTCTime, a)) -> [Timeseries a] -> Html
-chart config es vs = render2 config es vs
--}

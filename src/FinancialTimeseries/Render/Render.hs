@@ -6,6 +6,8 @@ module FinancialTimeseries.Render.Render where
 import Control.Applicative (liftA2)
 -- import Control.Monad (liftM)
 
+import Data.Time (UTCTime)
+
 import qualified Data.List as List
 
 import Data.Vector (Vector)
@@ -18,7 +20,7 @@ import Text.Blaze.Html (Html)
 import qualified Graphics.Rendering.Chart.Easy as E
 
 
-import FinancialTimeseries.Render.Chart (pdfChart)
+import FinancialTimeseries.Render.Chart (renderChart)
 import FinancialTimeseries.Render.Css ((!))
 import FinancialTimeseries.Render.HtmlReader (HtmlReader, Config, runHtmlReader)
 import FinancialTimeseries.Render.MonteCarlo (renderMC)
@@ -90,8 +92,14 @@ instance (Real a, Pretty params) => Render [Table params a] where
     let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
     in return (h <> (H5.div ! "tables" $ mapM_ table ts))
 
-instance (Real a, E.PlotValue a, E.PlotValue x, Pretty params) => Render (Chart params x a) where
+instance (Real a, E.PlotValue a, Pretty params) => Render (Chart params UTCTime a) where
   render xs c =
-    let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
-    in fmap (h <>) (pdfChart c)
+    let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " (xs ++ ["Timeseries"])))
+    in fmap (h <>) (renderChart c)
+
+
+instance (Real a, E.PlotValue a, Pretty params) => Render (Chart params Double a) where
+  render xs c =
+    let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " (xs ++ ["PDF"])))
+    in fmap (h <>) (renderChart c)
 
