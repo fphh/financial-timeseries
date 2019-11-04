@@ -185,14 +185,14 @@ toTable f = fmap (stats2list . map (fmap mkStatistics)) . distribute . map f
 
 
 
-stats2pdfChart :: [Labeled params (Stats a)] -> Chart params a
-stats2pdfChart = Chart "pdf" . map (fmap pdf)
+stats2pdfChart :: [Labeled params (Stats a)] -> Chart params Double a
+stats2pdfChart = Chart "pdf" . map (fmap ((:[]) . pdf))
 
 toChart ::
   (Distributive f, Fractional a, Real a) =>
   (Labeled params (Vector (Vector a)) -> f (Labeled params (Vector a)))
   -> [Labeled params (Vector (Vector a))]
-  -> f (Chart params a)
+  -> f (Chart params Double a)
 toChart f = fmap (stats2pdfChart . map (fmap mkStatistics)) . distribute . map f
 
 mcYields ::
@@ -221,30 +221,31 @@ mcRelativeDrawdowns (Labeled lbl xs) =
 
 metrics ::
   (Distributive longOrShort, Distributive f, DistributivePair f, Real a, Fractional a) =>
-  ([Labeled params (Vector (Vector a))] -> f (chart params a, [table params a]))
+  ([Labeled params (Vector (Vector a))] -> f (chart params x a, [table params a]))
   -> [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
-  -> longOrShort (MonteCarlo (f (NotInvested (chart params a, [table params a]), Invested (chart params a, [table params a]))))
+  -> longOrShort (MonteCarlo (f (NotInvested (chart params x a, [table params a]), Invested (chart params x a, [table params a]))))
 metrics statistics ms =
   let f (Labeled p x) = biliftA (distribute . Labeled p) (distribute . Labeled p) x
       g = fmap statistics . distribute
       h = undistributePair . biliftA (distribute . g) (distribute . g) . unzip . fmap f
   in fmap (fmap h . distribute . map distribute) (distribute ms)
 
+
 yields ::
   (Distributive longOrShort, Real a, Fractional a) =>
   [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
-  -> longOrShort (MonteCarlo (Yield (NotInvested (Chart params a, [Table params a]), Invested (Chart params a, [Table params a]))))
+  -> longOrShort (MonteCarlo (Yield (NotInvested (Chart params Double a, [Table params a]), Invested (Chart params Double a, [Table params a]))))
 yields = metrics (undistributePair . (\x -> (toChart mcYields x, toTable mcYields x)))
 
 
 absoluteDrawdowns ::
   (Distributive longOrShort, Real a, Fractional a) =>
   [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
-  -> longOrShort (MonteCarlo (AbsoluteDrawdown (NotInvested (Chart params a, [Table params a]), Invested (Chart params a, [Table params a]))))
+  -> longOrShort (MonteCarlo (AbsoluteDrawdown (NotInvested (Chart params Double a, [Table params a]), Invested (Chart params Double a, [Table params a]))))
 absoluteDrawdowns = metrics (undistributePair . (\x -> (toChart mcAbsoluteDrawdowns x, toTable mcAbsoluteDrawdowns x)))
 
 relativeDrawdowns ::
   (Distributive longOrShort, Real a, Fractional a) =>
   [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
-  -> longOrShort (MonteCarlo (RelativeDrawdown (NotInvested (Chart params a, [Table params a]), Invested (Chart params a, [Table params a]))))
+  -> longOrShort (MonteCarlo (RelativeDrawdown (NotInvested (Chart params Double a, [Table params a]), Invested (Chart params Double a, [Table params a]))))
 relativeDrawdowns = metrics (undistributePair . (\x -> (toChart mcRelativeDrawdowns x, toTable mcRelativeDrawdowns x)))

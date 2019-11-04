@@ -5,7 +5,7 @@ import Data.Vector (Vector)
 
 import FinancialTimeseries.Type.Labeled (Labeled)
 
-data Chart params a = Chart {
+data Chart params x a = Chart {
   title :: String
-  , curves :: [Labeled params (Vector (Double, a))]
+  , curves :: [Labeled params [Vector (x, a)]]
   } deriving (Show)
