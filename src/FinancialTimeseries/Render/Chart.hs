@@ -65,10 +65,10 @@ renderChart vs = do
     $ R.toRenderable $ do
     mapM_ (\(title, xs) -> E.plot (E.line title xs)) vs
 
-renderHelper ::
+chart ::
   (E.PlotValue a, Fractional a) =>
   Equity (Vector (UTCTime, a)) -> [Timeseries a] -> HtmlReader Html
-renderHelper res vs =
+chart res vs =
   let f (Timeseries nam (Price ts) segs as) =
         let (_, mi) = Vec.minimumBy (compare `on` snd) ts
             (_, ma) = Vec.maximumBy (compare `on` snd) ts
@@ -85,7 +85,7 @@ renderHelper res vs =
   in renderChart (concatMap f vs ++ [("Equity", [Vec.toList (unEquity res)])])
 
 
-
+{-
 render2 ::
   (E.PlotValue a, Fractional a) =>
   Config -> Equity (Vector (UTCTime, a)) -> [Timeseries a] -> Html
@@ -94,9 +94,9 @@ render2 config res vs = runHtmlReader config (renderHelper res vs)
 
 chart ::
   (E.PlotValue a, Fractional a) =>
-  Equity (Vector (UTCTime, a)) -> [Timeseries a] -> Config -> Html
-chart es vs config = render2 config es vs
-
+  Config -> Equity (Vector (UTCTime, a)) -> [Timeseries a] -> Html
+chart config es vs = render2 config es vs
+-}
 
 pdfChart :: (E.PlotValue a, Pretty params) => Chart params a -> HtmlReader Html
 pdfChart (Chart ttl cs) = do
