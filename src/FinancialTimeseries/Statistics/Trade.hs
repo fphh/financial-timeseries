@@ -19,7 +19,6 @@ import qualified Formatting.Time as FT
 
 import FinancialTimeseries.Type.Types (Yield(..))
 
-
 newtype ROI a = ROI {
   unROI :: a
   } deriving (Show)

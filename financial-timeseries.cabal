@@ -28,6 +28,7 @@ library
                    , FinancialTimeseries.Render.Statement
                    , FinancialTimeseries.Render.Table
                    , FinancialTimeseries.Source.Alphavantage
+                   , FinancialTimeseries.Statistics.Statistics
                    , FinancialTimeseries.Statistics.Trade
                    , FinancialTimeseries.Test
                    , FinancialTimeseries.Type.Chart
@@ -42,6 +43,8 @@ library
                    , FinancialTimeseries.Type.Types
                    , FinancialTimeseries.Util.DistributivePair
                    , FinancialTimeseries.Util.Pretty
+                   , FinancialTimeseries.Util.Row
+
                   
 
 
