@@ -1,6 +1,6 @@
 
 
-module FinancialTimeseries.Algorithm.Statistics where
+module FinancialTimeseries.Statistics.Trade where
 
 import Data.Bifunctor (bimap)
 import Data.Biapplicative (biliftA2)

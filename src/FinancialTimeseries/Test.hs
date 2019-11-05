@@ -20,7 +20,7 @@ import qualified Data.List as List
 import FinancialTimeseries.Algorithm.Evaluate (long, evaluateInvested)
 -- import FinancialTimeseries.Algorithm.MonteCarlo (MCStats(), statsHelper, start)
 import FinancialTimeseries.Algorithm.MovingAverage (Window(..), movingAverage)
-import FinancialTimeseries.Algorithm.Statistics (ROI(..), Stats(count, meanROI, totalROI), statistics)
+import FinancialTimeseries.Statistics.Trade (ROI(..), Stats(count, meanROI, totalROI), statistics)
 
 import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), Price(..), Yield(..), partitionInvested)
 import FinancialTimeseries.Type.Long (Long(..))

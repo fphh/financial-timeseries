@@ -19,7 +19,6 @@ library
   exposed-modules:   FinancialTimeseries.Algorithm.Evaluate
                    , FinancialTimeseries.Algorithm.MonteCarlo
                    , FinancialTimeseries.Algorithm.MovingAverage
-                   , FinancialTimeseries.Algorithm.Statistics
                    , FinancialTimeseries.Render.Chart
                    , FinancialTimeseries.Render.Css
                    , FinancialTimeseries.Render.Document
@@ -28,7 +27,8 @@ library
                    , FinancialTimeseries.Render.Render
                    , FinancialTimeseries.Render.Statement
                    , FinancialTimeseries.Render.Table
-                   , FinancialTimeseries.Source.Alphavantage                   
+                   , FinancialTimeseries.Source.Alphavantage
+                   , FinancialTimeseries.Statistics.Trade
                    , FinancialTimeseries.Test
                    , FinancialTimeseries.Type.Chart
                    , FinancialTimeseries.Type.Fraction
