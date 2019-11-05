@@ -8,3 +8,4 @@ data Table params a = Table {
   , rowHeaders :: [String]
   , rows :: [Labeled params [a]]
   } deriving (Show)
+
