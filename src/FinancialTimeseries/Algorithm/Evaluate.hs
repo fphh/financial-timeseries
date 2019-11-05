@@ -1,7 +1,7 @@
 
 module FinancialTimeseries.Algorithm.Evaluate where
 
-
+import Data.Bifunctor (bimap)
 import Data.Distributive (Distributive, distribute)
 
 import Data.Time (UTCTime)
@@ -15,7 +15,6 @@ import FinancialTimeseries.Type.Short (Short(..))
 import FinancialTimeseries.Type.Types(Invested(..), NotInvested(..), Equity(..), Yield(..), Price(..))
 import FinancialTimeseries.Util.DistributivePair (DistributivePair, distributePair, undistributePair)
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
-import FinancialTimeseries.Util.Util (biliftA)
 
 profit ::
   (Fractional a) =>
@@ -27,7 +26,7 @@ profit p =
         let (_, x0) = Vec.head v
         in Vec.map (fmap (p x0)) v
       g = fmap (map f)
-  in Yield . biliftA g g . unPrice
+  in Yield . bimap g g . unPrice
 
 long ::
   (Fractional a)
@@ -83,11 +82,11 @@ class Evaluate longOrShort where
 instance Evaluate Long where
   evaluate eqty =
     let eval = distribute . fmap (longEvaluate eqty) . distribute
-    in fmap (undistributePair . biliftA eval eval . distributePair)
+    in fmap (undistributePair . bimap eval eval . distributePair)
 
   evaluateFraction frac eqty =
     let eval = distribute . fmap (longEvaluateFraction frac eqty) . distribute
-    in fmap (undistributePair . biliftA eval eval . distributePair)
+    in fmap (undistributePair . bimap eval eval . distributePair)
    
 
 

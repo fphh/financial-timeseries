@@ -2,6 +2,9 @@
 
 module FinancialTimeseries.Algorithm.Statistics where
 
+import Data.Bifunctor (bimap)
+import Data.Biapplicative (biliftA2)
+
 import Data.Time (UTCTime, NominalDiffTime, diffUTCTime)
 
 import qualified Data.Vector as Vec
@@ -15,7 +18,6 @@ import qualified Formatting as F
 import qualified Formatting.Time as FT
 
 import FinancialTimeseries.Type.Types (Yield(..))
-import FinancialTimeseries.Util.Util (biliftA, biliftA2)
 
 
 newtype ROI a = ROI {
@@ -85,4 +87,4 @@ statistics ::
 statistics =
   let f v = biliftA2 (\t0 tn -> tn `diffUTCTime` t0) (\_ x -> x) (Vec.head v) (Vec.last v)
       g = Vec.fromList . map f
-  in fmap (fmap (biliftA (fmap (roiHelper . g)) (fmap (roiHelper . g))))
+  in fmap (fmap (bimap (fmap (roiHelper . g)) (fmap (roiHelper . g))))

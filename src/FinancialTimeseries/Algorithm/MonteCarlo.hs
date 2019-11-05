@@ -5,6 +5,8 @@ module FinancialTimeseries.Algorithm.MonteCarlo where
 
 import Data.Distributive (Distributive, distribute)
 
+import Data.Bifunctor (bimap)
+
 import qualified Data.Vector as Vec
 import Data.Vector (Vector)
 
@@ -20,7 +22,6 @@ import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
 import FinancialTimeseries.Type.Table (Table(..))
 import FinancialTimeseries.Type.Types (Equity(..), Yield(..), AbsoluteDrawdown(..), RelativeDrawdown(..), Invested(..), NotInvested(..))
 import FinancialTimeseries.Util.DistributivePair (DistributivePair, undistributePair)
-import FinancialTimeseries.Util.Util (biliftA)
 
 
 
@@ -35,7 +36,7 @@ sample xs as bs =
         let zs = Vec.fromList us
             len = Vec.length zs
         in map ((zs Vec.!) . (`mod` len)) rs
-  in fmap (fmap (biliftA (fmap (g as)) (fmap (g bs)))) xs
+  in fmap (fmap (bimap (fmap (g as)) (fmap (g bs)))) xs
 
 
 data Config = Config {
@@ -73,9 +74,9 @@ mc cfg eqty xs = do
   ss <- samples (sampleLength cfg) xs
   let n = numberOfSamples cfg
       g = fmap (Vec.map snd)
-      ws evaluate = fmap distribute (distribute (map (fmap (fmap (biliftA g g)) . evaluate eqty) ss))
+      ws evaluate = fmap distribute (distribute (map (fmap (fmap (bimap g g)) . evaluate eqty) ss))
       k = distribute . Vec.fromList . take n
-      h = biliftA k k . unzip
+      h = bimap k k . unzip
   return (\p e -> fmap (Labeled p . MonteCarlo . h . unEquity) (ws e))
 
 
@@ -225,9 +226,9 @@ metrics ::
   -> [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
   -> longOrShort (MonteCarlo (f (NotInvested (chart params x a, [table params a]), Invested (chart params x a, [table params a]))))
 metrics statistics ms =
-  let f (Labeled p x) = biliftA (distribute . Labeled p) (distribute . Labeled p) x
+  let f (Labeled p x) = bimap (distribute . Labeled p) (distribute . Labeled p) x
       g = fmap statistics . distribute
-      h = undistributePair . biliftA (distribute . g) (distribute . g) . unzip . fmap f
+      h = undistributePair . bimap (distribute . g) (distribute . g) . unzip . fmap f
   in fmap (fmap h . distribute . map distribute) (distribute ms)
 
 

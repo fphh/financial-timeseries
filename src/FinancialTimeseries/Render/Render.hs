@@ -22,7 +22,7 @@ import qualified Graphics.Rendering.Chart.Easy as E
 
 import FinancialTimeseries.Render.Chart (renderChart)
 import FinancialTimeseries.Render.Css ((!))
-import FinancialTimeseries.Render.HtmlReader (HtmlReader, Config, runHtmlReader)
+import FinancialTimeseries.Render.HtmlReader (HtmlReader)
 import FinancialTimeseries.Render.MonteCarlo (renderMC)
 import FinancialTimeseries.Render.Table (table)
 import FinancialTimeseries.Type.Chart (Chart(..))

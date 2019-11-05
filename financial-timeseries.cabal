@@ -42,7 +42,6 @@ library
                    , FinancialTimeseries.Type.Types
                    , FinancialTimeseries.Util.DistributivePair
                    , FinancialTimeseries.Util.Pretty
-                   , FinancialTimeseries.Util.Util
                   
 
 
@@ -74,6 +73,7 @@ library
                      , distributive
                      , colour
                      , formatting
+                     , bifunctors
 
   hs-source-dirs:      src
   default-language:    Haskell2010

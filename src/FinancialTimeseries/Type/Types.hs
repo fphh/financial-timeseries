@@ -3,15 +3,12 @@
 
 module FinancialTimeseries.Type.Types where
 
-
+import Data.Bifunctor (bimap)
 import Data.Distributive (Distributive, distribute)
-
-
 import Data.Either (partitionEithers)
 
 import FinancialTimeseries.Util.DistributivePair (DistributivePair, distributePair, undistributePair, distPair, undistPair)
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
-import FinancialTimeseries.Util.Util (biliftA)
 
 
 
@@ -110,7 +107,7 @@ instance DistributivePair RelativeDrawdown where
 partitionInvested ::
   Price [Either (NotInvested a) (Invested b)] -> Price (NotInvested [a], Invested [b])
 partitionInvested =
-  fmap (biliftA (NotInvested . map unNotInvested) (Invested . map unInvested) . partitionEithers)
+  fmap (bimap (NotInvested . map unNotInvested) (Invested . map unInvested) . partitionEithers)
 
 invested :: Price [Either (NotInvested a) (Invested a)] -> Price (Invested [a])
 invested = fmap snd . partitionInvested
