@@ -30,7 +30,7 @@ import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
 import FinancialTimeseries.Type.Table (Table)
-import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), Yield(..), Price(..), AbsoluteDrawdown(..), RelativeDrawdown(..))
+import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), TimeseriesYield(..), TradeYield(..), Price(..), AbsoluteDrawdown(..), RelativeDrawdown(..))
 import FinancialTimeseries.Type.Short (Short(..))
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
@@ -55,8 +55,11 @@ instance (Render a) => Render (NotInvested a) where
 instance (Render a) => Render (Equity a) where
   render xs (Equity m) = render (xs ++ ["Equity"]) m
 
-instance (Render a) => Render (Yield a) where
-  render xs (Yield m) = render (xs ++ ["Yield"]) m
+instance (Render a) => Render (TimeseriesYield a) where
+  render xs (TimeseriesYield m) = render (xs ++ ["TimeseriesYield"]) m
+
+instance (Render a) => Render (TradeYield a) where
+  render xs (TradeYield m) = render (xs ++ ["TradeYield"]) m
 
 instance (Render a) => Render (Price a) where
   render xs (Price m) = render (xs ++ ["Price"]) m
@@ -100,6 +103,6 @@ instance (Real a, E.PlotValue a, Pretty params) => Render (Chart params UTCTime 
 
 instance (Real a, E.PlotValue a, Pretty params) => Render (Chart params Double a) where
   render xs c =
-    let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " (xs ++ ["PDF"])))
+    let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " (xs ++ ["CDF"])))
     in fmap (h <>) (renderChart c)
 

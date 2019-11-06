@@ -31,12 +31,9 @@ import qualified Diagrams.TwoD as D2
 
 import Graphics.Svg.Core (renderBS)
 
-
-import FinancialTimeseries.Render.Css ((!))
-import FinancialTimeseries.Render.HtmlReader (HtmlReader, Config(..), runHtmlReader)
+import FinancialTimeseries.Render.HtmlReader (HtmlReader, Config(..))
 import FinancialTimeseries.Type.Chart (Chart(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
-import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.Segment (Segment(..))
 import FinancialTimeseries.Type.Timeseries (Timeseries(..))
 import FinancialTimeseries.Type.Types (Equity(..), Price(..))
@@ -64,7 +61,7 @@ chart res vs =
 renderChart ::
   (E.PlotValue a, E.PlotValue x, Pretty params) =>
   Chart params x a -> HtmlReader Html
-renderChart (Chart ttl cs) = do
+renderChart (Chart _ttl cs) = do
   cfg <- ask
   
   let (w, h) = chartSize cfg
@@ -82,5 +79,5 @@ renderChart (Chart ttl cs) = do
     $ D.runBackendWithGlyphs env
     $ flip R.render (w, h)
     $ R.toRenderable
-    $ mapM_ (\(Labeled title xs) -> E.plot (E.line (pretty title) (map Vec.toList xs))) cs
+    $ mapM_ (\(Labeled ttle xs) -> E.plot (E.line (pretty ttle) (map Vec.toList xs))) cs
 

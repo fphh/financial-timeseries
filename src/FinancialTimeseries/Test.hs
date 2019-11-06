@@ -22,7 +22,7 @@ import FinancialTimeseries.Algorithm.Evaluate (long, evaluateInvested)
 import FinancialTimeseries.Algorithm.MovingAverage (Window(..), movingAverage)
 -- import FinancialTimeseries.Statistics.Trade (ROI(..), Stats(count, meanROI, totalROI), statistics)
 
-import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), Price(..), Yield(..), partitionInvested)
+import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), Price(..), partitionInvested)
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.Segment (segments, Segment(..))
 import FinancialTimeseries.Type.Timeseries (Timeseries(..), slice)
@@ -229,7 +229,7 @@ prop_statistics_mean :: MovingAvgTest -> Bool
 prop_statistics_mean (MovingAvgTest w ts) =
   let zs = movingAverage w ts
       lg = long (partitionInvested (slice zs))
-      Long (Yield (NotInvested x, Invested y)) = statistics lg
+      Long (Yield(NotInvested x, Invested y)) = statistics lg
       
       eps = 1.0e-4
       

@@ -21,17 +21,17 @@ import FinancialTimeseries.Type.Chart (Chart(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
 import FinancialTimeseries.Type.Table (Table(..))
-import FinancialTimeseries.Type.Types (Equity(..), Yield(..), AbsoluteDrawdown(..), RelativeDrawdown(..), Invested(..), NotInvested(..))
+import FinancialTimeseries.Type.Types (Equity(..), TradeYield(..), TimeseriesYield(..), AbsoluteDrawdown(..), RelativeDrawdown(..), Invested(..), NotInvested(..))
 import FinancialTimeseries.Util.DistributivePair (DistributivePair, undistributePair)
 import FinancialTimeseries.Util.Row (row)
 
 
 sample ::
   (Functor longOrShort, Functor inv, Functor notInv) =>
-  longOrShort (Yield (notInv [Vector u], inv [Vector u]))
+  longOrShort (TradeYield (notInv [Vector u], inv [Vector u]))
   -> [Int]
   -> [Int]
-  -> longOrShort (Yield (notInv [Vector u], inv [Vector u]))
+  -> longOrShort (TradeYield (notInv [Vector u], inv [Vector u]))
 sample xs as bs =
   let g rs us =
         let zs = Vec.fromList us
@@ -48,8 +48,8 @@ data Config = Config {
 samples ::
   (Functor longOrShort, Functor inv, Functor notInv) =>
   Int
-  -> longOrShort (Yield (notInv [Vector (t, a)], inv [Vector (t, a)]))
-  -> IO [longOrShort (Yield (notInv [Vector (t, a)], inv [Vector (t, a)]))]
+  -> longOrShort (TradeYield (notInv [Vector (t, a)], inv [Vector (t, a)]))
+  -> IO [longOrShort (TradeYield (notInv [Vector (t, a)], inv [Vector (t, a)]))]
 samples sampLen xs = do
   (ga, gb) <- fmap R.split R.newStdGen
 
@@ -62,14 +62,14 @@ samples sampLen xs = do
 
 type Evaluate longOrShort t a =
   Equity a
-  -> longOrShort (Yield (NotInvested [Vector (t, a)], Invested [Vector (t, a)]))
+  -> longOrShort (TradeYield (NotInvested [Vector (t, a)], Invested [Vector (t, a)]))
   -> longOrShort (Equity (NotInvested (Vector (t, a)), Invested (Vector (t, a))))
 
 mc ::
   (Num a, Functor longOrShort, Distributive longOrShort) =>
   Config
   -> Equity a
-  -> longOrShort (Yield (NotInvested [Vector (t, a)], Invested [Vector (t, a)]))
+  -> longOrShort (TradeYield (NotInvested [Vector (t, a)], Invested [Vector (t, a)]))
   -> IO (params -> Evaluate longOrShort t a -> longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a))))))
 mc cfg eqty xs = do
   ss <- samples (sampleLength cfg) xs
@@ -92,8 +92,8 @@ stats2list xs =
      : Table "Probabilities" pheaders (map (fmap (row . probabilities)) xs)
      : []
 
-stats2pdfChart :: [Labeled params (Stats a)] -> Chart params Double a
-stats2pdfChart = Chart "pdf" . map (fmap ((:[]) . pdf))
+stats2cdfChart :: [Labeled params (Stats a)] -> Chart params Double a
+stats2cdfChart = Chart "CDF" . map (fmap ((:[]) . cdf))
 
 metrics ::
   (Distributive f, Distributive g, DistributivePair g, Fractional b, Real b) =>
@@ -103,7 +103,7 @@ metrics ::
 metrics mcf =
   let k xs = 
         let ys = fmap (map (fmap mkStatistics)) (distribute (map mcf xs))
-        in undistributePair (fmap stats2pdfChart ys, fmap stats2list ys) 
+        in undistributePair (fmap stats2cdfChart ys, fmap stats2list ys) 
 
       f (Labeled p x) = bimap (distribute . Labeled p) (distribute . Labeled p) x
       g = fmap k . distribute
@@ -111,11 +111,11 @@ metrics mcf =
   in fmap (fmap h . distribute . map distribute) . distribute
 
 
-yields ::
+timeseriesYields ::
   (Distributive longOrShort, Real a, Fractional a) =>
   [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
-  -> longOrShort (MonteCarlo (Yield (NotInvested (Chart params Double a, [Table params a]), Invested (Chart params Double a, [Table params a]))))
-yields = metrics (Yield . fmap (Vec.map yield))
+  -> longOrShort (MonteCarlo (TimeseriesYield (NotInvested (Chart params Double a, [Table params a]), Invested (Chart params Double a, [Table params a]))))
+timeseriesYields = metrics (TimeseriesYield . fmap (Vec.map yield))
 
 absoluteDrawdowns ::
   (Distributive longOrShort, Real a, Fractional a) =>

@@ -17,7 +17,7 @@ import qualified Statistics.Sample as Sample
 import qualified Formatting as F
 import qualified Formatting.Time as FT
 
-import FinancialTimeseries.Type.Types (Yield(..))
+import FinancialTimeseries.Type.Types (TradeYield(..))
 
 
 {-

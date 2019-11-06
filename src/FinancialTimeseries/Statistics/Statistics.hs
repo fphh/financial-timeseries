@@ -49,7 +49,7 @@ data Stats a = Stats {
   quantiles :: Quantiles a
   , probabilities :: Probabilities a
   , moments :: Moments a
-  , pdf :: Vector (Double, a)
+  , cdf :: Vector (Double, a)
   } deriving (Show)
 
 mkStatistics ::
@@ -91,7 +91,7 @@ mkStatistics vs =
     quantiles = q
     , probabilities = p
     , moments = m
-    , pdf = Vec.imap (\i x -> (fromIntegral i / noe, x)) sorted
+    , cdf = Vec.imap (\i x -> (fromIntegral i / noe, x)) sorted
     }
 
 

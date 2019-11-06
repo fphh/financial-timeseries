@@ -48,19 +48,35 @@ instance DistributivePair Equity where
   distributePair = distPair Equity unEquity
   undistributePair = undistPair Equity unEquity
 
-newtype Yield a = Yield {
-  unYield :: a
+
+newtype TimeseriesYield a = TimeseriesYield {
+  unTimeseriesYield :: a
   } deriving (Show, Functor)
 
-instance Pretty a => Pretty (Yield a) where
-  pretty (Yield x) = "Yield:\n" ++ pretty x
+instance Pretty a => Pretty (TimeseriesYield a) where
+  pretty (TimeseriesYield x) = "TimeseriesYield:\n" ++ pretty x
 
-instance Distributive Yield where
-  distribute = Yield . fmap unYield
+instance Distributive TimeseriesYield where
+  distribute = TimeseriesYield . fmap unTimeseriesYield
 
-instance DistributivePair Yield where
-  distributePair = distPair Yield unYield
-  undistributePair = undistPair Yield unYield
+instance DistributivePair TimeseriesYield where
+  distributePair = distPair TimeseriesYield unTimeseriesYield
+  undistributePair = undistPair TimeseriesYield unTimeseriesYield
+
+
+newtype TradeYield a = TradeYield {
+  unTradeYield :: a
+  } deriving (Show, Functor)
+
+instance Pretty a => Pretty (TradeYield a) where
+  pretty (TradeYield x) = "TradeYield:\n" ++ pretty x
+
+instance Distributive TradeYield where
+  distribute = TradeYield . fmap unTradeYield
+
+instance DistributivePair TradeYield where
+  distributePair = distPair TradeYield unTradeYield
+  undistributePair = undistPair TradeYield unTradeYield
 
 
 newtype Price a = Price {
