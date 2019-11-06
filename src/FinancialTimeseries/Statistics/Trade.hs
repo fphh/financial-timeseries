@@ -19,6 +19,17 @@ import qualified Formatting.Time as FT
 
 import FinancialTimeseries.Type.Types (Yield(..))
 
+
+{-
+newtype Trade a = Trade {
+  unTrade :: a
+  } deriving (Show, Functor)
+-}
+
+
+-- tradeStatistics :: 
+
+{-
 newtype ROI a = ROI {
   unROI :: a
   } deriving (Show)
@@ -87,3 +98,4 @@ statistics =
   let f v = biliftA2 (\t0 tn -> tn `diffUTCTime` t0) (\_ x -> x) (Vec.head v) (Vec.last v)
       g = Vec.fromList . map f
   in fmap (fmap (bimap (fmap (roiHelper . g)) (fmap (roiHelper . g))))
+-}

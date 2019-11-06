@@ -94,3 +94,12 @@ mkStatistics vs =
     , pdf = Vec.imap (\i x -> (fromIntegral i / noe, x)) sorted
     }
 
+
+yield :: (Fractional a) => Vector a -> a
+yield v = Vec.last v / Vec.head v
+
+absoluteDrawdown :: (Ord a, Fractional a) => Vector a -> a
+absoluteDrawdown v = Vec.minimum v / Vec.head v
+
+relativeDrawdown :: (Ord a, Num a, Fractional a) => Vector a -> a
+relativeDrawdown v = Vec.minimum (Vec.zipWith (/) v (Vec.postscanl max 0 v))

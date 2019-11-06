@@ -16,7 +16,7 @@ import qualified System.Random as R
 
 import qualified Statistics.Sample as Sample
 
-import FinancialTimeseries.Statistics.Statistics (Stats(..), mkStatistics)
+import FinancialTimeseries.Statistics.Statistics (Stats(..), mkStatistics, yield, absoluteDrawdown, relativeDrawdown)
 import FinancialTimeseries.Type.Chart (Chart(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
@@ -111,49 +111,20 @@ metrics mcf =
   in fmap (fmap h . distribute . map distribute) . distribute
 
 
-
-mcYields ::
-  (Fractional a) =>
-  Labeled params (Vector (Vector a)) -> Yield (Labeled params (Vector a))
-mcYields (Labeled lbl xs) =
-  Yield
-  $ Labeled lbl
-  $ Vec.map (\vs -> Vec.last vs / Vec.head vs) xs
-
 yields ::
   (Distributive longOrShort, Real a, Fractional a) =>
   [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
   -> longOrShort (MonteCarlo (Yield (NotInvested (Chart params Double a, [Table params a]), Invested (Chart params Double a, [Table params a]))))
-yields = metrics mcYields
-
-
-
-mcAbsoluteDrawdowns ::
-  (Ord a, Fractional a) =>
-  Labeled params (Vector (Vector a)) -> AbsoluteDrawdown (Labeled params (Vector a))
-mcAbsoluteDrawdowns (Labeled lbl xs) =
-  AbsoluteDrawdown
-  $ Labeled lbl
-  $ Vec.map (\vs -> Vec.minimum vs / Vec.head vs) xs
+yields = metrics (Yield . fmap (Vec.map yield))
 
 absoluteDrawdowns ::
   (Distributive longOrShort, Real a, Fractional a) =>
   [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
   -> longOrShort (MonteCarlo (AbsoluteDrawdown (NotInvested (Chart params Double a, [Table params a]), Invested (Chart params Double a, [Table params a]))))
-absoluteDrawdowns = metrics mcAbsoluteDrawdowns
-
-
-
-mcRelativeDrawdowns ::
-  (Ord a, Fractional a) =>
-  Labeled params (Vector (Vector a)) -> RelativeDrawdown (Labeled params (Vector a))
-mcRelativeDrawdowns (Labeled lbl xs) =
-  RelativeDrawdown
-  $ Labeled lbl
-  $ Vec.map (\v -> Vec.minimum (Vec.zipWith (/) v (Vec.postscanl max 0 v))) xs
+absoluteDrawdowns = metrics (AbsoluteDrawdown . fmap (Vec.map absoluteDrawdown))
 
 relativeDrawdowns ::
   (Distributive longOrShort, Real a, Fractional a) =>
   [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
   -> longOrShort (MonteCarlo (RelativeDrawdown (NotInvested (Chart params Double a, [Table params a]), Invested (Chart params Double a, [Table params a]))))
-relativeDrawdowns = metrics mcRelativeDrawdowns
+relativeDrawdowns = metrics (RelativeDrawdown . fmap (Vec.map relativeDrawdown))

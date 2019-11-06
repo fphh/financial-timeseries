@@ -20,7 +20,7 @@ import qualified Data.List as List
 import FinancialTimeseries.Algorithm.Evaluate (long, evaluateInvested)
 -- import FinancialTimeseries.Algorithm.MonteCarlo (MCStats(), statsHelper, start)
 import FinancialTimeseries.Algorithm.MovingAverage (Window(..), movingAverage)
-import FinancialTimeseries.Statistics.Trade (ROI(..), Stats(count, meanROI, totalROI), statistics)
+-- import FinancialTimeseries.Statistics.Trade (ROI(..), Stats(count, meanROI, totalROI), statistics)
 
 import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), Price(..), Yield(..), partitionInvested)
 import FinancialTimeseries.Type.Long (Long(..))
@@ -224,7 +224,7 @@ prop_moving_avg_segment_indices (MovingAvgTest w@(Window m) ts) =
 
 -- --------------------------------------------------------------------------
 
- 
+{-
 prop_statistics_mean :: MovingAvgTest -> Bool
 prop_statistics_mean (MovingAvgTest w ts) =
   let zs = movingAverage w ts
@@ -240,7 +240,7 @@ prop_statistics_mean (MovingAvgTest w ts) =
   in case liftA2 p x y of
        Nothing -> True
        Just b -> b
-
+-}
 
 -- --------------------------------------------------------------------------
 
@@ -299,7 +299,7 @@ test = do
   check prop_moving_avg_alignment
   check prop_moving_avg_segment_indices
 
-  check prop_statistics_mean
+  -- check prop_statistics_mean
 
 
   -- check prop_montecarlo_peak_drawdown
