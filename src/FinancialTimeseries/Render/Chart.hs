@@ -61,7 +61,7 @@ chart res vs =
 renderChart ::
   (E.PlotValue a, E.PlotValue x, Pretty params) =>
   Chart params x a -> HtmlReader Html
-renderChart (Chart _ttl cs) = do
+renderChart (Chart ctitle cs) = do
   cfg <- ask
   
   let (w, h) = chartSize cfg
@@ -79,5 +79,7 @@ renderChart (Chart _ttl cs) = do
     $ D.runBackendWithGlyphs env
     $ flip R.render (w, h)
     $ R.toRenderable
-    $ mapM_ (\(Labeled ttle xs) -> E.plot (E.line (pretty ttle) (map Vec.toList xs))) cs
+    $ do
+    E.layout_title DP..= ctitle
+    mapM_ (\(Labeled ttle xs) -> E.plot (E.line (pretty ttle) (map Vec.toList xs))) cs
 

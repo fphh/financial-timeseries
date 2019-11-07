@@ -47,10 +47,12 @@ report cfg ts =
       lg = long (partitionInvested (slice t))
 
       convert (Price x) = Equity (snd x)
+      
       l = evaluate (convert (first ts)) lg
 
       j ys = (fmap AMC.stats2cdfChart ys, fmap AMC.stats2list ys)
       k = j . fmap ((:[]) . Labeled "Trade Yields" . mkStatistics . Vec.fromList . map (yield . Vec.map snd))
+
       -- tradeYields = fmap (fmap (bimap k k)) lg
       tradeYields = fmap (fmap (snd . fmap k)) lg
 

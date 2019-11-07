@@ -10,6 +10,7 @@ import Data.Time (UTCTime)
 
 import qualified Data.List as List
 
+--import qualified Data.Vector as Vec
 import Data.Vector (Vector)
 
 import qualified Data.Text as Text
@@ -85,6 +86,7 @@ instance (Render a) => Render (Short a) where
 instance (E.PlotValue a) => Render (Vector (Vector a)) where
   render xs vs =
     let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
+        -- crt = Chart "Broom" [Labeled "" (Vec.fromList vs)]
     in fmap (h <>) (renderMC vs)
 
 instance (Pretty params, Render a) => Render (Labeled params a) where
@@ -97,12 +99,12 @@ instance (Real a, Pretty a, Pretty params) => Render [Table params a] where
 
 instance (Real a, E.PlotValue a, Pretty params) => Render (Chart params UTCTime a) where
   render xs c =
-    let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " (xs ++ ["Timeseries"])))
+    let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
     in fmap (h <>) (renderChart c)
 
 
 instance (Real a, E.PlotValue a, Pretty params) => Render (Chart params Double a) where
   render xs c =
-    let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " (xs ++ ["CDF"])))
+    let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
     in fmap (h <>) (renderChart c)
 
