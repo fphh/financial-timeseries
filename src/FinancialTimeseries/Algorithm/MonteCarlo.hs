@@ -39,24 +39,30 @@ sample xs as bs =
   in fmap (fmap (bimap (fmap (g as)) (fmap (g bs)))) xs
 
 
-data Config = Config {
+data Config gen = Config {
   sampleLength :: Int
   , numberOfSamples :: Int
+  , randomGenerator :: gen 
   } deriving (Show)
 
-samples ::
-  (Functor longOrShort, Functor inv, Functor notInv) =>
-  Int
-  -> longOrShort (TradeYield (notInv [Vector (t, a)], inv [Vector (t, a)]))
-  -> IO [longOrShort (TradeYield (notInv [Vector (t, a)], inv [Vector (t, a)]))]
-samples sampLen xs = do
-  (ga, gb) <- fmap R.split R.newStdGen
 
+newMCConfig :: Int -> Int -> IO (Config R.StdGen)
+newMCConfig len num = do
+  gen <- R.newStdGen
+  return (Config len num gen)
+
+  
+samples ::
+  (R.RandomGen gen, Functor longOrShort, Functor inv, Functor notInv) =>
+  (gen, gen)
+  -> Int
+  -> longOrShort (TradeYield (notInv [Vector (t, a)], inv [Vector (t, a)]))
+  -> [longOrShort (TradeYield (notInv [Vector (t, a)], inv [Vector (t, a)]))]
+samples (ga, gb) sampLen xs =
   let chunk = (\(us, vs) -> us : chunk vs) . splitAt sampLen
       as = chunk (R.randoms ga)
       bs = chunk (R.randoms gb)
-
-  return (zipWith (sample xs) as bs)
+  in (zipWith (sample xs) as bs)
 
 
 type Evaluate longOrShort t a =
@@ -65,19 +71,19 @@ type Evaluate longOrShort t a =
   -> longOrShort (Equity (NotInvested (Vector (t, a)), Invested (Vector (t, a))))
 
 mc ::
-  (Num a, Functor longOrShort, Distributive longOrShort) =>
-  Config
+  (R.RandomGen gen, Num a, Functor longOrShort, Distributive longOrShort) =>
+  Config gen
   -> Equity a
   -> longOrShort (TradeYield (NotInvested [Vector (t, a)], Invested [Vector (t, a)]))
-  -> IO (params -> Evaluate longOrShort t a -> longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a))))))
-mc cfg eqty xs = do
-  ss <- samples (sampleLength cfg) xs
-  let n = numberOfSamples cfg
+  -> (params -> Evaluate longOrShort t a -> longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a))))))
+mc cfg eqty xs =
+  let ss = samples (R.split (randomGenerator cfg)) (sampleLength cfg) xs
+      n = numberOfSamples cfg
       g = fmap (Vec.map snd)
       ws evaluate = fmap distribute (distribute (map (fmap (fmap (bimap g g)) . evaluate eqty) ss))
       k = distribute . Vec.fromList . take n
       h = bimap k k . unzip
-  return (\p e -> fmap (Labeled p . MonteCarlo . h . unEquity) (ws e))
+  in (\p e -> fmap (Labeled p . MonteCarlo . h . unEquity) (ws e))
 
 
 
