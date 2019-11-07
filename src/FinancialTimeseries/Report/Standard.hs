@@ -51,8 +51,9 @@ report cfg ts =
 
       j ys = (fmap AMC.stats2cdfChart ys, fmap AMC.stats2list ys)
       k = j . fmap ((:[]) . Labeled "Trade Yields" . mkStatistics . Vec.fromList . map (yield . Vec.map snd))
-      tradeYields = fmap (fmap (bimap k k)) lg
-  
+      -- tradeYields = fmap (fmap (bimap k k)) lg
+      tradeYields = fmap (fmap (snd . fmap k)) lg
+
       tsCharts = fmap (bimap (fmap (flip chart [t]) . distribute) (fmap (flip chart [t]) . distribute) . distributePair) l
 
       mteCrlo = AMC.mc (monteCarloConfig cfg) lg
