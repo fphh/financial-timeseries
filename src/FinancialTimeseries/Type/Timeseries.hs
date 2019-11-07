@@ -31,6 +31,9 @@ data Timeseries a = Timeseries {
   } deriving (Show, Read)
 
 
+first :: Timeseries a -> Price (UTCTime, a)
+first ts = fmap Vec.head (timeseries ts)
+
 
 timeline :: forall a. (Ord a, PrintfArg a) => [Segment] -> Vector (UTCTime, a) -> [Vector (UTCTime, a)] -> [String]
 timeline is v vs =

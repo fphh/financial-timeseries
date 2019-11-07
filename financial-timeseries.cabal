@@ -27,6 +27,7 @@ library
                    , FinancialTimeseries.Render.Render
                    , FinancialTimeseries.Render.Statement
                    , FinancialTimeseries.Render.Table
+                   , FinancialTimeseries.Report.Standard
                    , FinancialTimeseries.Source.Alphavantage
                    , FinancialTimeseries.Statistics.Statistics
                    , FinancialTimeseries.Statistics.Trade

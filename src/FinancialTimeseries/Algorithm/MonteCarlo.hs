@@ -10,14 +10,11 @@ import Data.Bifunctor (bimap)
 import qualified Data.Vector as Vec
 import Data.Vector (Vector)
 
-import qualified Data.Vector.Algorithms.Merge as Merge
-
 import qualified System.Random as R
-
-import qualified Statistics.Sample as Sample
 
 import FinancialTimeseries.Statistics.Statistics (Stats(..), mkStatistics, yield, absoluteDrawdown, relativeDrawdown)
 import FinancialTimeseries.Type.Chart (Chart(..))
+import FinancialTimeseries.Type.Fraction (Fraction)
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
 import FinancialTimeseries.Type.Table (Cell(..), Table(..), row)
@@ -39,17 +36,17 @@ sample xs as bs =
   in fmap (fmap (bimap (fmap (g as)) (fmap (g bs)))) xs
 
 
-data Config gen = Config {
+data Config gen a = Config {
   sampleLength :: Int
   , numberOfSamples :: Int
-  , randomGenerator :: gen 
+  , startEquity :: Equity a
+  , fractions :: [Fraction a]
+  , randomGenerator :: gen
   } deriving (Show)
 
 
-newMCConfig :: Int -> Int -> IO (Config R.StdGen)
-newMCConfig len num = do
-  gen <- R.newStdGen
-  return (Config len num gen)
+newMCConfig :: Int -> Int -> Equity a -> [Fraction a] -> IO (Config R.StdGen a)
+newMCConfig len num eqty fs = R.newStdGen >>= return . Config len num eqty fs
 
   
 samples ::
@@ -72,14 +69,14 @@ type Evaluate longOrShort t a =
 
 mc ::
   (R.RandomGen gen, Num a, Functor longOrShort, Distributive longOrShort) =>
-  Config gen
-  -> Equity a
+  Config gen a
   -> longOrShort (TradeYield (NotInvested [Vector (t, a)], Invested [Vector (t, a)]))
   -> (params -> Evaluate longOrShort t a -> longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a))))))
-mc cfg eqty xs =
+mc cfg xs =
   let ss = samples (R.split (randomGenerator cfg)) (sampleLength cfg) xs
       n = numberOfSamples cfg
       g = fmap (Vec.map snd)
+      eqty = startEquity cfg
       ws evaluate = fmap distribute (distribute (map (fmap (fmap (bimap g g)) . evaluate eqty) ss))
       k = distribute . Vec.fromList . take n
       h = bimap k k . unzip
