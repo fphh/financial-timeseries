@@ -64,8 +64,8 @@ report cfg ts =
       html = runHtmlReader (reportConfig cfg) $ mconcat $
         currentTime (now cfg)
         : statement ("Timeseries is well formed: " ++ show (check_timeseries_prop t))
-        : display tradeYields
         : display tsCharts
+        : display tradeYields
         : display (mteCrlo (Fraction 1.0) evaluate)
         : display ys
         : display rdds
