@@ -20,10 +20,9 @@ import FinancialTimeseries.Statistics.Statistics (Stats(..), mkStatistics, yield
 import FinancialTimeseries.Type.Chart (Chart(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
-import FinancialTimeseries.Type.Table (Table(..))
+import FinancialTimeseries.Type.Table (Cell(..), Table(..), row)
 import FinancialTimeseries.Type.Types (Equity(..), TradeYield(..), TimeseriesYield(..), AbsoluteDrawdown(..), RelativeDrawdown(..), Invested(..), NotInvested(..))
 import FinancialTimeseries.Util.DistributivePair (DistributivePair, undistributePair)
-import FinancialTimeseries.Util.Row (row)
 
 
 sample ::
@@ -84,12 +83,13 @@ mc cfg eqty xs = do
 
 stats2list :: [Labeled params (Stats a)] -> [Table params a]
 stats2list xs =
-  let qheaders = ["Q05", "Q25", "Q50", "Q75", "Q95"]
-      pheaders = ["P(X < 0.5)", "P(X < 0.75)", "P(X < 1.0)", "P(X < 1.25)", "P(X < 1.5)", "P(X < 1.75)", "P(X < 2.0)"]
-      mheaders = ["Max.", "Min.", "Mean", "StdDev."]
-  in Table "Quantiles" qheaders (map (fmap (row . quantiles)) xs)
-     : Table "Moments" mheaders (map (fmap (row . moments)) xs)
-     : Table "Probabilities" pheaders (map (fmap (row . probabilities)) xs)
+  let qheaders = map CString ["Q05", "Q25", "Q50", "Q75", "Q95", "Sample Size"]
+      pheaders = map CString ["P(X < 0.5)", "P(X < 0.75)", "P(X < 1.0)", "P(X < 1.25)", "P(X < 1.5)", "P(X < 1.75)", "P(X < 2.0)", "Sample Size"]
+      mheaders = map CString ["Max.", "Min.", "Mean", "StdDev.", "Sample Size"]
+      mkRow g x = row (g x) ++ [CInt (sampleSize x)]
+  in Table "Quantiles" qheaders (map (fmap (mkRow quantiles)) xs)
+     : Table "Moments" mheaders (map (fmap (mkRow moments)) xs)
+     : Table "Probabilities" pheaders (map (fmap (mkRow probabilities)) xs)
      : []
 
 stats2cdfChart :: [Labeled params (Stats a)] -> Chart params Double a

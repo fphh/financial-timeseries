@@ -90,7 +90,7 @@ instance (E.PlotValue a) => Render (Vector (Vector a)) where
 instance (Pretty params, Render a) => Render (Labeled params a) where
   render xs (Labeled lbl ys) = render (xs ++ [pretty lbl]) ys
 
-instance (Real a, Pretty params) => Render [Table params a] where
+instance (Real a, Pretty a, Pretty params) => Render [Table params a] where
   render xs ts =
     let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
     in return (h <> (H5.div ! "tables" $ mapM_ table ts))

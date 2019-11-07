@@ -9,7 +9,9 @@ import qualified Data.Vector.Algorithms.Merge as Merge
 
 import qualified Statistics.Sample as Sample
 
-import FinancialTimeseries.Util.Row (Row, row)
+import FinancialTimeseries.Type.Table (Cell(..), Row, row)
+
+
 
 data Quantiles a = Quantiles {
   q05 :: !a
@@ -20,7 +22,7 @@ data Quantiles a = Quantiles {
   } deriving (Show)
 
 instance Row Quantiles where
-  row (Quantiles a b c d e) = [a, b, c, d, e]
+  row (Quantiles a b c d e) = map Cell [a, b, c, d, e]
 
 data Probabilities a = Probabilities {
   p0'50 :: !a
@@ -33,7 +35,7 @@ data Probabilities a = Probabilities {
   } deriving (Show)
 
 instance Row Probabilities where
-  row (Probabilities a b c d e f g) = [a, b, c, d, e, f, g]
+  row (Probabilities a b c d e f g) = map Cell [a, b, c, d, e, f, g]
 
 data Moments a = Moments {
   maxYield :: !a
@@ -43,10 +45,11 @@ data Moments a = Moments {
   } deriving (Show)
   
 instance Row Moments where
-  row (Moments a b c d) = [a, b, c, d]
+  row (Moments a b c d) = map Cell [a, b, c, d]
 
 data Stats a = Stats {
-  quantiles :: Quantiles a
+  sampleSize :: Int
+  , quantiles :: Quantiles a
   , probabilities :: Probabilities a
   , moments :: Moments a
   , cdf :: Vector (Double, a)
@@ -88,7 +91,8 @@ mkStatistics vs =
         }
         
   in Stats {
-    quantiles = q
+    sampleSize = Vec.length vs
+    , quantiles = q
     , probabilities = p
     , moments = m
     , cdf = Vec.imap (\i x -> (fromIntegral i / noe, x)) sorted

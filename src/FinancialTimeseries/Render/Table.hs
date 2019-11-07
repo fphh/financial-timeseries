@@ -13,19 +13,19 @@ import Text.Blaze.Html (Html)
 
 import FinancialTimeseries.Render.Css ((!))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
-import FinancialTimeseries.Type.Table (Table(..))
-import FinancialTimeseries.Util.Pretty (Pretty, pretty, fmt)
+import FinancialTimeseries.Type.Table (Cell(..), Table(..), emptyCell)
+import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
 
-table :: (Real a, Pretty params) => Table params a -> Html
+table :: (Real a, Pretty a, Pretty params) => Table params a -> Html
 table (Table ttle chs ts) =
   let us = map (\l@(Labeled _ t) -> (length t, l)) ts
       (len, _) = List.maximumBy (compare `on` fst) us
 
-      colHeaders = "" : chs
+      colHeaders = emptyCell : chs
       vs =
         colHeaders
-        : map (\(l, Labeled lbl t) -> pretty lbl : map fmt t ++ replicate (len - l) "") us
+        : map (\(l, Labeled lbl t) -> CString (pretty lbl) : t ++ replicate (len - l) emptyCell) us
 
       cell c = H5.div ! "rTableCell" $ H5.toHtml c
       row cs = H5.div ! "rTableRow" $ mapM_ cell cs
@@ -35,5 +35,5 @@ table (Table ttle chs ts) =
       
   in H5.div ! "rTable" $ do
      hrow (ttle : replicate len "")
-     mapM_ row vs
+     mapM_ (row . map pretty) vs
 
