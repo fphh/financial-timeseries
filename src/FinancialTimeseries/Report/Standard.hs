@@ -26,6 +26,7 @@ import FinancialTimeseries.Test (check_timeseries_prop)
 import FinancialTimeseries.Type.Types (Equity(..), Price(..), partitionInvested)
 import FinancialTimeseries.Type.Fraction (Fraction(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
+import FinancialTimeseries.Type.MonteCarlo (Broom(..))
 import FinancialTimeseries.Type.Timeseries (Timeseries, first, slice)
 import FinancialTimeseries.Util.DistributivePair (distributePair)
 import FinancialTimeseries.Util.Pretty (Pretty)
@@ -64,12 +65,17 @@ report cfg ts =
       ys = fmap (fmap (fmap snd)) (AMC.timeseriesYields ms)
       rdds = fmap (fmap (fmap snd)) (AMC.relativeDrawdowns ms)
 
+
+      -- broom :: Long (Labeled (Fraction Double) (MonteCarlo (NotInvested (Vec.Vector (Vec.Vector a)), Invested (Vec.Vector (Vec.Vector a)))))
+      -- broom :: _
+      broom = fmap (fmap (fmap (bimap (fmap Broom) (fmap Broom)))) (mteCrlo (Fraction 1.0) evaluate)
+
       html = runHtmlReader (reportConfig cfg) $ mconcat $
         currentTime (now cfg)
         : statement ("Timeseries is well formed: " ++ show (check_timeseries_prop t))
         : display tsCharts
         : display tradeYields
-        : display (mteCrlo (Fraction 1.0) evaluate)
+        : display broom -- (mteCrlo (Fraction 1.0) evaluate)
         : display ys
         : display rdds
         : []

@@ -13,7 +13,7 @@ import Data.Vector (Vector)
 import qualified System.Random as R
 
 import FinancialTimeseries.Statistics.Statistics (Stats(..), mkStatistics, yield, absoluteDrawdown, relativeDrawdown)
-import FinancialTimeseries.Type.Chart (Chart(..))
+import FinancialTimeseries.Type.Chart (Chart(..), LChart)
 import FinancialTimeseries.Type.Fraction (Fraction)
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
@@ -95,14 +95,14 @@ stats2list xs =
      : Table "Probabilities" pheaders (map (fmap (mkRow probabilities)) xs)
      : []
 
-stats2cdfChart :: [Labeled params (Stats a)] -> Chart params Double a
+stats2cdfChart :: [Labeled params (Stats a)] -> LChart params Double a
 stats2cdfChart = Chart "CDF" . map (fmap ((:[]) . cdf))
 
 metrics ::
   (Distributive f, Distributive g, DistributivePair g, Fractional b, Real b) =>
   (Labeled params a -> g (Labeled params (Vector b)))
   -> [f (Labeled params (MonteCarlo (NotInvested a, Invested a)))]
-  -> f (MonteCarlo (g (NotInvested (Chart params Double b, [Table params b]), Invested (Chart params Double b, [Table params b]))))
+  -> f (MonteCarlo (g (NotInvested (LChart params Double b, [Table params b]), Invested (LChart params Double b, [Table params b]))))
 metrics mcf =
   let k xs = 
         let ys = fmap (map (fmap mkStatistics)) (distribute (map mcf xs))
@@ -117,17 +117,17 @@ metrics mcf =
 timeseriesYields ::
   (Distributive longOrShort, Real a, Fractional a) =>
   [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
-  -> longOrShort (MonteCarlo (TimeseriesYield (NotInvested (Chart params Double a, [Table params a]), Invested (Chart params Double a, [Table params a]))))
+  -> longOrShort (MonteCarlo (TimeseriesYield (NotInvested (LChart params Double a, [Table params a]), Invested (LChart params Double a, [Table params a]))))
 timeseriesYields = metrics (TimeseriesYield . fmap (Vec.map yield))
 
 absoluteDrawdowns ::
   (Distributive longOrShort, Real a, Fractional a) =>
   [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
-  -> longOrShort (MonteCarlo (AbsoluteDrawdown (NotInvested (Chart params Double a, [Table params a]), Invested (Chart params Double a, [Table params a]))))
+  -> longOrShort (MonteCarlo (AbsoluteDrawdown (NotInvested (LChart params Double a, [Table params a]), Invested (LChart params Double a, [Table params a]))))
 absoluteDrawdowns = metrics (AbsoluteDrawdown . fmap (Vec.map absoluteDrawdown))
 
 relativeDrawdowns ::
   (Distributive longOrShort, Real a, Fractional a) =>
   [longOrShort (Labeled params (MonteCarlo (NotInvested (Vector (Vector a)), Invested (Vector (Vector a)))))]
-  -> longOrShort (MonteCarlo (RelativeDrawdown (NotInvested (Chart params Double a, [Table params a]), Invested (Chart params Double a, [Table params a]))))
+  -> longOrShort (MonteCarlo (RelativeDrawdown (NotInvested (LChart params Double a, [Table params a]), Invested (LChart params Double a, [Table params a]))))
 relativeDrawdowns = metrics (RelativeDrawdown . fmap (Vec.map relativeDrawdown))

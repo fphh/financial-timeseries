@@ -1,4 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies #-}
+
+
 
 module FinancialTimeseries.Render.Chart where
 
@@ -32,7 +37,7 @@ import qualified Diagrams.TwoD as D2
 import Graphics.Svg.Core (renderBS)
 
 import FinancialTimeseries.Render.HtmlReader (HtmlReader, Config(..))
-import FinancialTimeseries.Type.Chart (Chart(..))
+import FinancialTimeseries.Type.Chart (ParaCurve(..), Chart(..), LChart)
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Segment (Segment(..))
 import FinancialTimeseries.Type.Timeseries (Timeseries(..))
@@ -41,7 +46,7 @@ import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
 chart ::
   (E.PlotValue a, Fractional a) =>
-  Equity (Vector (UTCTime, a)) -> [Timeseries a] -> Chart String UTCTime a
+  Equity (Vector (UTCTime, a)) -> [Timeseries a] -> LChart String UTCTime a
 chart res vs =
   let f (Timeseries nam (Price ts) segs as) =
         let (_, mi) = Vec.minimumBy (compare `on` snd) ts
@@ -58,9 +63,33 @@ chart res vs =
            ++ map (\(str, xs) -> Labeled str [unPrice xs]) as
   in Chart "Timeseries" (concatMap f vs ++ [Labeled "Equity" [unEquity res]])
 
+
+
+class PlotLine a where
+  type TyX a :: *
+  type TyY a :: *
+  plotLine :: (Pretty params) => Labeled params a -> E.EC (E.Layout (TyX a) (TyY a)) ()
+
+instance PlotLine [Vector (x, a)] where
+  type TyX [Vector (x, a)] = x
+  type TyY [Vector (x, a)] = a
+  plotLine (Labeled ttle xs) = E.plot (E.line (pretty ttle) (map Vec.toList xs))
+
+
+-- instance PlotLine (ParaCurve (E.EC (E.Layout x a) ()) [Vector (x, a)]) where
+instance PlotLine (ParaCurve Vector x a) where
+  type TyX (ParaCurve Vector x a) = x
+  type TyY (ParaCurve Vector x a) = a
+  plotLine (Labeled ttle (ParaCurve curveparams xs)) = do
+    curveparams
+    E.plot (E.line (pretty ttle) (map Vec.toList xs))
+
+
+
+
 renderChart ::
-  (E.PlotValue a, E.PlotValue x, Pretty params) =>
-  Chart params x a -> HtmlReader Html
+  (PlotLine curve, E.PlotValue (TyX curve), E.PlotValue (TyY curve), Pretty params) =>
+  Chart params curve -> HtmlReader Html
 renderChart (Chart ctitle cs) = do
   cfg <- ask
   
@@ -81,5 +110,7 @@ renderChart (Chart ctitle cs) = do
     $ R.toRenderable
     $ do
     E.layout_title DP..= ctitle
-    mapM_ (\(Labeled ttle xs) -> E.plot (E.line (pretty ttle) (map Vec.toList xs))) cs
+    mapM_ plotLine cs
+    
+    -- mapM_ (\(Labeled ttle xs) -> E.plot (E.line (pretty ttle) (map Vec.toList xs))) cs
 

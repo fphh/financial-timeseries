@@ -1,16 +1,21 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 
 module FinancialTimeseries.Render.Render where
 
 import Control.Applicative (liftA2)
--- import Control.Monad (liftM)
+
+import Data.Bifunctor (bimap)
 
 import Data.Time (UTCTime)
 
+import Data.Colour.SRGB (sRGB24)
+
 import qualified Data.List as List
 
---import qualified Data.Vector as Vec
+import qualified Data.Vector as Vec
 import Data.Vector (Vector)
 
 import qualified Data.Text as Text
@@ -21,15 +26,14 @@ import Text.Blaze.Html (Html)
 import qualified Graphics.Rendering.Chart.Easy as E
 
 
-import FinancialTimeseries.Render.Chart (renderChart)
+import FinancialTimeseries.Render.Chart (renderChart, PlotLine)
 import FinancialTimeseries.Render.Css ((!))
 import FinancialTimeseries.Render.HtmlReader (HtmlReader)
-import FinancialTimeseries.Render.MonteCarlo (renderMC)
 import FinancialTimeseries.Render.Table (table)
-import FinancialTimeseries.Type.Chart (Chart(..))
+import FinancialTimeseries.Type.Chart (Chart(..), LChart, ParaCurve(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Long (Long(..))
-import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
+import FinancialTimeseries.Type.MonteCarlo (Broom(..), MonteCarlo(..))
 import FinancialTimeseries.Type.Table (Table)
 import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), TimeseriesYield(..), TradeYield(..), Price(..), AbsoluteDrawdown(..), RelativeDrawdown(..))
 import FinancialTimeseries.Type.Short (Short(..))
@@ -71,9 +75,6 @@ instance (Render a) => Render (AbsoluteDrawdown a) where
 instance (Render a) => Render (RelativeDrawdown a) where
   render xs (RelativeDrawdown m) = render (xs ++ ["RelativeDrawdown"]) m
 
--- instance (Render a) => Render [a] where
---  render xs ys = sequence (map (render xs) ys)
-
 instance (Render a, Render b) => Render (a, b) where
   render xs (u, v) = liftA2 (<>) (render xs u) (render xs v)
 
@@ -83,11 +84,33 @@ instance (Render a) => Render (Long a) where
 instance (Render a) => Render (Short a) where
   render xs (Short m) = render (xs ++ ["Short"]) m
 
-instance (E.PlotValue a) => Render (Vector (Vector a)) where
-  render xs vs =
+instance (Ord a, E.PlotValue a) => Render (Broom a) where
+  render xs (Broom vs) =
     let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
-        -- crt = Chart "Broom" [Labeled "" (Vec.fromList vs)]
-    in fmap (h <>) (renderMC vs)
+
+        p v = Vec.head v < Vec.last v
+
+        winColor = E.opaque (sRGB24 0 0 220)
+        looseColor = E.opaque (sRGB24 220 0 0)
+
+        ww = Vec.findIndex p vs
+        ll = Vec.findIndex (not . p) vs
+
+        f i v =
+          let ttl = 
+                case (fmap (i==) ww, fmap (i==) ll) of
+                  (Just True, Just False) -> "Winners"
+                  (Just False, Just True) -> "Loosers"
+                  _ -> ""
+              color =
+                case p v of
+                  True -> winColor
+                  False -> looseColor
+          in Labeled ttl (ParaCurve (E.setColors [color]) [Vec.imap (,) v])
+                       
+        c = Chart "Broom" (Vec.toList (Vec.imap f vs))
+
+    in fmap (h <>) (renderChart c)
 
 instance (Pretty params, Render a) => Render (Labeled params a) where
   render xs (Labeled lbl ys) = render (xs ++ [pretty lbl]) ys
@@ -97,14 +120,12 @@ instance (Real a, Pretty a, Pretty params) => Render [Table params a] where
     let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
     in return (h <> (H5.div ! "tables" $ mapM_ table ts))
 
-instance (Real a, E.PlotValue a, Pretty params) => Render (Chart params UTCTime a) where
+instance (Real a, E.PlotValue a, Pretty params) => Render (LChart params UTCTime a) where
   render xs c =
     let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
     in fmap (h <>) (renderChart c)
 
-
-instance (Real a, E.PlotValue a, Pretty params) => Render (Chart params Double a) where
+instance (Real a, E.PlotValue a, Pretty params) => Render (LChart params Double a) where
   render xs c =
     let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
     in fmap (h <>) (renderChart c)
-
