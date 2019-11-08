@@ -23,7 +23,6 @@ library
                    , FinancialTimeseries.Render.Css
                    , FinancialTimeseries.Render.Document
                    , FinancialTimeseries.Render.HtmlReader
-                   , FinancialTimeseries.Render.MonteCarlo
                    , FinancialTimeseries.Render.Render
                    , FinancialTimeseries.Render.Statement
                    , FinancialTimeseries.Render.Table
