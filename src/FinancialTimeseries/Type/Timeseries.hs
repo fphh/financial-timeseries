@@ -31,7 +31,7 @@ data TimeseriesRaw a = TimeseriesRaw {
 data Timeseries a = Timeseries {
   timeseriesRaw :: TimeseriesRaw a
   , investedSegments :: [Segment]
-  , additionalSeries :: [Labeled String (Price (Vector (UTCTime, a)))] -- [(String, Vector (UTCTime, a))]
+  , additionalSeries :: [Labeled String (Price (Vector (UTCTime, a)))]
   } deriving (Show, Read)
 
 
