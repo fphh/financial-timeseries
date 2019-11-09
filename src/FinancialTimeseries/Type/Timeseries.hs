@@ -17,6 +17,7 @@ import qualified Data.List as List
 
 import Text.Printf (PrintfArg, printf)
 
+import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Segment (Segment(..), segments)
 import FinancialTimeseries.Type.Types (NotInvested, Invested, Price(..))
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
@@ -30,7 +31,7 @@ data TimeseriesRaw a = TimeseriesRaw {
 data Timeseries a = Timeseries {
   timeseriesRaw :: TimeseriesRaw a
   , investedSegments :: [Segment]
-  , additionalSeries :: [(String, Price (Vector (UTCTime, a)))] -- [(String, Vector (UTCTime, a))]
+  , additionalSeries :: [Labeled String (Price (Vector (UTCTime, a)))] -- [(String, Vector (UTCTime, a))]
   } deriving (Show, Read)
 
 
@@ -55,7 +56,7 @@ timeline is v vs =
 
 instance (Show a, Ord a, PrintfArg a) => Pretty (Timeseries a) where
   pretty (Timeseries (TimeseriesRaw n as) ss vs) =
-    let tl = timeline ss (unPrice as) (map (unPrice . snd) vs)
+    let tl = timeline ss (unPrice as) (map (unPrice . content) vs)
     in n ++ "\n" ++ (map (const '-') n) ++ "\n" ++ List.intercalate "\n" tl
 
     

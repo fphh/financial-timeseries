@@ -60,7 +60,7 @@ chart res vs =
                   ys = [(t0,spikeLow), (t0, spikeHigh), (t0, m), (tn, m), (tn, spikeLow), (tn, spikeHigh)]
               in Vec.fromList ys
         in [Labeled nam [ts], Labeled (nam ++ " (inv. / not inv.)") (map g segs)]
-           ++ map (\(str, xs) -> Labeled str [unPrice xs]) as
+           ++ map (fmap ((:[]) . unPrice)) as
   in Chart "Timeseries" (concatMap f vs ++ [Labeled "Equity" [unEquity res]])
 
 

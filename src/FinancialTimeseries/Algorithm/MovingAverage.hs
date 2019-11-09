@@ -6,6 +6,7 @@ import qualified Data.Vector as Vec
 
 import qualified Statistics.Sample as Sample
 
+import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Segment (Segment(..))
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), Timeseries(..))
 import FinancialTimeseries.Type.Types (Price(..))
@@ -48,6 +49,6 @@ movingAverage (Window m) ts@(TimeseriesRaw _ (Price vs)) =
       res = Timeseries {
         timeseriesRaw = ts
         , investedSegments = g xs
-        , additionalSeries = [("Moving Average", Price (Vec.map h us))]
+        , additionalSeries = [Labeled "Moving Average" (Price (Vec.map h us))]
         }
   in res

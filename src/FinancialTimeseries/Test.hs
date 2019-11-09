@@ -21,8 +21,9 @@ import FinancialTimeseries.Algorithm.Evaluate (long, evaluateInvested)
 import FinancialTimeseries.Algorithm.MovingAverage (Window(..), movingAverage)
 -- import FinancialTimeseries.Statistics.Trade (ROI(..), Stats(count, meanROI, totalROI), statistics)
 
-import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), Price(..), partitionInvested)
+import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Long (Long(..))
+import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), Price(..), partitionInvested)
 import FinancialTimeseries.Type.Segment (segments, Segment(..))
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), Timeseries(..), slice)
 
@@ -198,18 +199,18 @@ prop_moving_avg_timeseries_props (MovingAvgTest m (Timeseries ts _ _)) =
 
 prop_moving_avg_length :: MovingAvgTest -> Bool
 prop_moving_avg_length (MovingAvgTest w@(Window m) (Timeseries ts _ _)) =
-  let Timeseries (TimeseriesRaw _ (Price ss)) _ ((_, Price as):_) = movingAverage w ts
+  let Timeseries (TimeseriesRaw _ (Price ss)) _ (Labeled _ (Price as):_) = movingAverage w ts
   in Vec.length as == Vec.length ss - m + 1
 
 prop_moving_avg_alignment :: MovingAvgTest -> Bool
 prop_moving_avg_alignment (MovingAvgTest w@(Window m) (Timeseries ts _ _)) =
-  let Timeseries (TimeseriesRaw _ (Price ss)) _ ((_, Price as):_) = movingAverage w ts
+  let Timeseries (TimeseriesRaw _ (Price ss)) _ (Labeled _ (Price as):_) = movingAverage w ts
       zs = Vec.drop (m-1) ss
   in Vec.map fst as == Vec.map fst zs
 
 prop_moving_avg_segment_indices :: MovingAvgTest -> Bool
 prop_moving_avg_segment_indices (MovingAvgTest w@(Window m) (Timeseries ts _ _)) =
-  let Timeseries (TimeseriesRaw _ (Price ss)) segs ((_, Price as):_) = movingAverage w ts
+  let Timeseries (TimeseriesRaw _ (Price ss)) segs (Labeled _ (Price as):_) = movingAverage w ts
       zs = Vec.drop (m-1) ss
       tsegs = map (\(Segment a b) -> Segment (a-m+1) (b-m+1)) segs
       
