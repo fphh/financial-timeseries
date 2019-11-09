@@ -22,7 +22,7 @@ import Data.Aeson (Value)
 
 import qualified Network.HTTP.Simple as Simple
 
-import FinancialTimeseries.Type.Timeseries (Timeseries(..))
+import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..))
 import FinancialTimeseries.Type.Types (Price(..))
 
 
@@ -119,16 +119,14 @@ toDataSet (Extract extract) (Ae.Object val) =
 toDataSet _ _ = Nothing
 
 
-dataSet2timeseries :: DataSet (Vector (UTCTime, Price a)) -> Timeseries a
-dataSet2timeseries ds = Timeseries {
+dataSet2timeseries :: DataSet (Vector (UTCTime, Price a)) -> TimeseriesRaw a
+dataSet2timeseries ds = TimeseriesRaw {
   name = Text.unpack (symbol ds)
   , timeseries = Price (Vec.map (fmap unPrice) (timeseriesDS ds))
-  , investedSegments = []
-  , additionalSeries = []
   }
 
 
-getSymbol :: String -> String -> IO (Maybe (Timeseries Double))
+getSymbol :: String -> String -> IO (Maybe (TimeseriesRaw Double))
 getSymbol sym apikey = do
   response <- Simple.httpJSON (url sym apikey)
   let ds = toDataSet (Extract close) (Simple.getResponseBody response)

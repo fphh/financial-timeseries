@@ -7,7 +7,7 @@ import qualified Data.Vector as Vec
 import qualified Statistics.Sample as Sample
 
 import FinancialTimeseries.Type.Segment (Segment(..))
-import FinancialTimeseries.Type.Timeseries (Timeseries(..))
+import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), Timeseries(..))
 import FinancialTimeseries.Type.Types (Price(..))
 
 newtype Window = Window {
@@ -20,8 +20,8 @@ data UpDown =
   | Down Int
   deriving (Show)
 
-movingAverage :: (Real a, Fractional a) => Window -> Timeseries a -> Timeseries a
-movingAverage (Window m) ts@(Timeseries _ (Price vs) _ _) =
+movingAverage :: (Real a, Fractional a) => Window -> TimeseriesRaw a -> Timeseries a
+movingAverage (Window m) ts@(TimeseriesRaw _ (Price vs)) =
   let idx = Vec.fromList [0 .. Vec.length vs - m]
   
       slc i =
@@ -45,8 +45,9 @@ movingAverage (Window m) ts@(Timeseries _ (Price vs) _ _) =
       
       h (t, s, _) = (t, s)
       
-      res = ts {
-        investedSegments = g xs
+      res = Timeseries {
+        timeseriesRaw = ts
+        , investedSegments = g xs
         , additionalSeries = [("Moving Average", Price (Vec.map h us))]
         }
   in res

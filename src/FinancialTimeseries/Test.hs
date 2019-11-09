@@ -3,7 +3,6 @@
 
 module FinancialTimeseries.Test where
 
-import Data.Function (on)
 
 import Control.Applicative (liftA2)
 
@@ -25,9 +24,9 @@ import FinancialTimeseries.Algorithm.MovingAverage (Window(..), movingAverage)
 import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), Price(..), partitionInvested)
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.Segment (segments, Segment(..))
-import FinancialTimeseries.Type.Timeseries (Timeseries(..), slice)
+import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), Timeseries(..), slice)
 
-import Debug.Trace (trace)
+
 
 data ListOfSegments = ListOfSegments Int [Segment] deriving (Show)
 
@@ -63,8 +62,10 @@ instance QC.Arbitrary TS where
     us <- Vec.generateM len f 
         
     return $ TS $ Timeseries {
-      name = "arbitrary"
-      , timeseries = Price us
+      timeseriesRaw = TimeseriesRaw {
+          name = "arbitrary"
+          , timeseries = Price us
+          }
       , investedSegments = seg
       , additionalSeries = []
       }
@@ -109,7 +110,7 @@ prop_segment_all_less (ListOfSegments _ ss) =
 -- --------------------------------------------------------------------------
 
 check_timeseries_prop :: Timeseries a -> Bool
-check_timeseries_prop (Timeseries _ ts ss _) =
+check_timeseries_prop (Timeseries (TimeseriesRaw _ ts) ss _) =
   check_segment_length_non_zero_prop ss
   && check_segment_last_idx_prop (Vec.length (unPrice ts) - 1) ss
   && check_segment_all_less_prop ss
@@ -121,7 +122,7 @@ prop_timeseries (TS ts) =
 -- --------------------------------------------------------------------------
 
 prop_alternating_inv_ninv_segment :: TS -> Bool
-prop_alternating_inv_ninv_segment (TS (Timeseries _ _ ss _)) =
+prop_alternating_inv_ninv_segment (TS (Timeseries _ ss _)) =
   let segs = segments ss
       f (Left (NotInvested _)) (Right (Invested _)) = True
       f (Right (Invested _)) (Left (NotInvested _)) = True
@@ -141,7 +142,7 @@ prop_alternating_inv_ninv_slice (TS ts) =
 -- --------------------------------------------------------------------------
 
 prop_slice :: TS -> Bool
-prop_slice (TS ts@(Timeseries _ (Price as) ss _)) =
+prop_slice (TS ts@(Timeseries (TimeseriesRaw _ (Price as)) ss _)) =
   let segs = segments ss
       Price slc = slice ts
       p (Right (Invested (Segment a b))) (Right (Invested v)) =
@@ -177,8 +178,8 @@ data MovingAvgTest = MovingAvgTest {
 
 instance QC.Arbitrary MovingAvgTest where
   arbitrary = do
-    TS us <- QC.arbitrary `QC.suchThat` ((>0) . Vec.length . unPrice . timeseries . unTS)
-    let len = Vec.length (unPrice (timeseries us))
+    TS us <- QC.arbitrary `QC.suchThat` ((>0) . Vec.length . unPrice . timeseries . timeseriesRaw . unTS)
+    let len = Vec.length (unPrice (timeseries (timeseriesRaw us)))
     m <- QC.choose (1, len)
     return $ MovingAvgTest {
       window = Window m
@@ -186,29 +187,29 @@ instance QC.Arbitrary MovingAvgTest where
       }
       
 check_moving_avg_props :: MovingAvgTest -> Bool
-check_moving_avg_props (MovingAvgTest (Window m) ts) =
+check_moving_avg_props (MovingAvgTest (Window m) (Timeseries ts _ _)) =
   m > 0
   && Vec.length (unPrice (timeseries ts)) >= m
 
 prop_moving_avg_timeseries_props :: MovingAvgTest -> Bool
-prop_moving_avg_timeseries_props (MovingAvgTest m ts) =
+prop_moving_avg_timeseries_props (MovingAvgTest m (Timeseries ts _ _)) =
   let us = movingAverage m ts
   in check_timeseries_prop us
 
 prop_moving_avg_length :: MovingAvgTest -> Bool
-prop_moving_avg_length (MovingAvgTest w@(Window m) ts) =
-  let Timeseries _ (Price ss) _ ((_, Price as):_) = movingAverage w ts
+prop_moving_avg_length (MovingAvgTest w@(Window m) (Timeseries ts _ _)) =
+  let Timeseries (TimeseriesRaw _ (Price ss)) _ ((_, Price as):_) = movingAverage w ts
   in Vec.length as == Vec.length ss - m + 1
 
 prop_moving_avg_alignment :: MovingAvgTest -> Bool
-prop_moving_avg_alignment (MovingAvgTest w@(Window m) ts) =
-  let Timeseries _ (Price ss) _ ((_, Price as):_) = movingAverage w ts
+prop_moving_avg_alignment (MovingAvgTest w@(Window m) (Timeseries ts _ _)) =
+  let Timeseries (TimeseriesRaw _ (Price ss)) _ ((_, Price as):_) = movingAverage w ts
       zs = Vec.drop (m-1) ss
   in Vec.map fst as == Vec.map fst zs
 
 prop_moving_avg_segment_indices :: MovingAvgTest -> Bool
-prop_moving_avg_segment_indices (MovingAvgTest w@(Window m) ts) =
-  let Timeseries _ (Price ss) segs ((_, Price as):_) = movingAverage w ts
+prop_moving_avg_segment_indices (MovingAvgTest w@(Window m) (Timeseries ts _ _)) =
+  let Timeseries (TimeseriesRaw _ (Price ss)) segs ((_, Price as):_) = movingAverage w ts
       zs = Vec.drop (m-1) ss
       tsegs = map (\(Segment a b) -> Segment (a-m+1) (b-m+1)) segs
       

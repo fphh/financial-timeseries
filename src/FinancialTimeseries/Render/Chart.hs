@@ -40,7 +40,7 @@ import FinancialTimeseries.Render.HtmlReader (HtmlReader, Config(..))
 import FinancialTimeseries.Type.Chart (ParaCurve(..), Chart(..), LChart)
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Segment (Segment(..))
-import FinancialTimeseries.Type.Timeseries (Timeseries(..))
+import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), Timeseries(..))
 import FinancialTimeseries.Type.Types (Equity(..), Price(..))
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
@@ -48,7 +48,7 @@ chart ::
   (E.PlotValue a, Fractional a) =>
   Equity (Vector (UTCTime, a)) -> [Timeseries a] -> LChart String UTCTime a
 chart res vs =
-  let f (Timeseries nam (Price ts) segs as) =
+  let f (Timeseries (TimeseriesRaw nam (Price ts)) segs as) =
         let (_, mi) = Vec.minimumBy (compare `on` snd) ts
             (_, ma) = Vec.maximumBy (compare `on` snd) ts
             m = mi + (ma - mi) * 0.8

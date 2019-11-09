@@ -27,7 +27,7 @@ import FinancialTimeseries.Type.Types (Equity(..), Price(..), partitionInvested)
 import FinancialTimeseries.Type.Fraction (Fraction(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.MonteCarlo (Broom(..))
-import FinancialTimeseries.Type.Timeseries (Timeseries, first, slice)
+import FinancialTimeseries.Type.Timeseries (TimeseriesRaw, Timeseries, first, slice)
 import FinancialTimeseries.Util.DistributivePair (distributePair)
 import FinancialTimeseries.Util.Pretty (Pretty)
 
@@ -36,13 +36,13 @@ data ReportConfig gen a = ReportConfig {
   now :: UTCTime
   , reportConfig :: Config
   , monteCarloConfig :: AMC.Config gen a
-  , strategy :: Timeseries a -> Timeseries a
+  , strategy :: TimeseriesRaw a -> Timeseries a
   }
 
 
 report ::
   (R.RandomGen gen, Num a, Fractional a, Real a, E.PlotValue a, Show a, Pretty a) =>
-  ReportConfig gen a -> Timeseries a -> H5.Html
+  ReportConfig gen a -> TimeseriesRaw a -> H5.Html
 report cfg ts =
   let t = strategy cfg ts
       lg = long (partitionInvested (slice t))

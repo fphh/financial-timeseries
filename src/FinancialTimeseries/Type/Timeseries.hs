@@ -22,17 +22,20 @@ import FinancialTimeseries.Type.Types (NotInvested, Invested, Price(..))
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
 
-
-data Timeseries a = Timeseries {
+data TimeseriesRaw a = TimeseriesRaw {
   name :: String
   , timeseries :: Price (Vector (UTCTime, a))
+  } deriving (Show, Read)
+
+data Timeseries a = Timeseries {
+  timeseriesRaw :: TimeseriesRaw a
   , investedSegments :: [Segment]
   , additionalSeries :: [(String, Price (Vector (UTCTime, a)))] -- [(String, Vector (UTCTime, a))]
   } deriving (Show, Read)
 
 
-first :: Timeseries a -> Price (UTCTime, a)
-first ts = fmap Vec.head (timeseries ts)
+first :: TimeseriesRaw a -> Price (UTCTime, a)
+first = fmap Vec.head . timeseries
 
 
 timeline :: forall a. (Ord a, PrintfArg a) => [Segment] -> Vector (UTCTime, a) -> [Vector (UTCTime, a)] -> [String]
@@ -51,7 +54,7 @@ timeline is v vs =
   in res
 
 instance (Show a, Ord a, PrintfArg a) => Pretty (Timeseries a) where
-  pretty (Timeseries n as ss vs) =
+  pretty (Timeseries (TimeseriesRaw n as) ss vs) =
     let tl = timeline ss (unPrice as) (map (unPrice . snd) vs)
     in n ++ "\n" ++ (map (const '-') n) ++ "\n" ++ List.intercalate "\n" tl
 
@@ -71,7 +74,7 @@ instance (Show a, Ord a, PrintfArg a) => Pretty (Timeseries a) where
 -}
 
 slice :: Timeseries a -> Price [(Either (NotInvested (Vector (UTCTime, a))) (Invested (Vector (UTCTime, a))))]
-slice (Timeseries _ (Price as) is _) =
+slice (Timeseries (TimeseriesRaw _ (Price as)) is _) =
   let ss = segments is
       f (Segment a b) = Vec.slice a (b-a+1) as
   in Price (map (bimap (fmap f) (fmap f)) ss)
@@ -81,11 +84,10 @@ timeseriesTest :: Timeseries Double
 timeseriesTest =
   let Just d = parseTimeM True defaultTimeLocale "%Y-%-m-%-d" "2010-3-04" :: Maybe UTCTime
   in Timeseries {
-    name = "timeseriesTest"
-    , timeseries = Price (Vec.generate 40 (\i -> (realToFrac i `addUTCTime` d, 2 + sin (0.5*fromIntegral i))))
-    -- timeseries = Vec.generate 12 (\i -> (realToFrac i `addUTCTime` d, 2 + fromIntegral i))
-
+    timeseriesRaw = TimeseriesRaw {
+        name = "timeseriesTest"
+        , timeseries = Price (Vec.generate 40 (\i -> (realToFrac i `addUTCTime` d, 2 + sin (0.5*fromIntegral i))))
+        }
     , investedSegments = [Segment 2 3, Segment 7 9]
-   --  , investedSegments = []
     , additionalSeries = []
     }
