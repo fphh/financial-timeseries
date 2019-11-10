@@ -7,6 +7,7 @@ import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 data Cell a =
   Cell a
   | CInt Int
+  | CDouble Double
   | CString String
   deriving (Show)
 
@@ -16,6 +17,7 @@ emptyCell = CString ""
 instance (Pretty a) => Pretty (Cell a) where
   pretty (Cell u) = pretty u
   pretty (CInt i) = show i
+  pretty (CDouble x) = pretty x
   pretty (CString s) = s
 
       

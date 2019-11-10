@@ -19,6 +19,7 @@ library
   exposed-modules:   FinancialTimeseries.Algorithm.Evaluate
                    , FinancialTimeseries.Algorithm.MonteCarlo
                    , FinancialTimeseries.Algorithm.MovingAverage
+                   , FinancialTimeseries.Optimize.Optimize
                    , FinancialTimeseries.Render.Chart
                    , FinancialTimeseries.Render.Css
                    , FinancialTimeseries.Render.Document
@@ -39,6 +40,7 @@ library
                    , FinancialTimeseries.Type.MonteCarlo
                    , FinancialTimeseries.Type.Segment
                    , FinancialTimeseries.Type.Short
+                   , FinancialTimeseries.Type.Strategy
                    , FinancialTimeseries.Type.Table
                    , FinancialTimeseries.Type.Timeseries
                    , FinancialTimeseries.Type.Types

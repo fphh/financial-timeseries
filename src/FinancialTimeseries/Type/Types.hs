@@ -51,7 +51,7 @@ instance DistributivePair Equity where
 
 newtype TimeseriesYield a = TimeseriesYield {
   unTimeseriesYield :: a
-  } deriving (Show, Functor)
+  } deriving (Eq, Ord, Show, Functor)
 
 instance Pretty a => Pretty (TimeseriesYield a) where
   pretty (TimeseriesYield x) = "TimeseriesYield:\n" ++ pretty x
@@ -66,7 +66,7 @@ instance DistributivePair TimeseriesYield where
 
 newtype TradeYield a = TradeYield {
   unTradeYield :: a
-  } deriving (Show, Functor)
+  } deriving (Eq, Ord, Show, Functor)
 
 instance Pretty a => Pretty (TradeYield a) where
   pretty (TradeYield x) = "TradeYield:\n" ++ pretty x

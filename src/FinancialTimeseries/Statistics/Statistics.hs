@@ -86,6 +86,10 @@ mkStatistics vs =
       m = Moments {
         maxYield = Vec.last sorted
         , minYield = Vec.head sorted
+        {-
+        , meanYield = realToFrac $ exp (Sample.mean (Vec.map log sortedFrac))
+        , stdDevYield = realToFrac $ exp (Sample.stdDev (Vec.map log sortedFrac))
+-}
         , meanYield = realToFrac $ Sample.mean sortedFrac
         , stdDevYield = realToFrac $ Sample.stdDev sortedFrac
         }

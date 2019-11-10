@@ -26,12 +26,14 @@ import FinancialTimeseries.Render.Render (display)
 import FinancialTimeseries.Render.Statement (statement, currentTime)
 import FinancialTimeseries.Statistics.Statistics (mkStatistics, yield)
 import FinancialTimeseries.Test (check_timeseries_prop)
-import FinancialTimeseries.Type.Types (Equity(..), Price(..), partitionInvested)
 import FinancialTimeseries.Type.Fraction (Fraction(..))
 import FinancialTimeseries.Type.Histogram (Histogram(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.MonteCarlo (Broom(..))
-import FinancialTimeseries.Type.Timeseries (TimeseriesRaw, Timeseries, first, slice)
+import FinancialTimeseries.Type.Strategy (Strategy(..))
+import FinancialTimeseries.Type.Timeseries (TimeseriesRaw, first, slice)
+import FinancialTimeseries.Type.Types (Equity(..), Price(..), partitionInvested)
+
 import FinancialTimeseries.Util.DistributivePair (distributePair)
 import FinancialTimeseries.Util.Pretty (Pretty)
 
@@ -40,14 +42,14 @@ data ReportConfig gen a = ReportConfig {
   now :: UTCTime
   , reportConfig :: Config
   , monteCarloConfig :: AMC.Config gen a
-  , strategy :: TimeseriesRaw a -> Timeseries a
+  , strategy :: Strategy a -- TimeseriesRaw a -> Timeseries a
   }
 
 report ::
   (R.RandomGen gen, Num a, Fractional a, Real a, E.PlotValue a, Show a, Pretty a) =>
   ReportConfig gen a -> TimeseriesRaw a -> H5.Html
 report cfg ts =
-  let t = strategy cfg ts
+  let t = unStrategy (strategy cfg) ts
       lg = long (partitionInvested (slice t))
       mteCrlo = AMC.mc (monteCarloConfig cfg) lg
 
