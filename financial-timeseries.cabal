@@ -33,6 +33,7 @@ library
                    , FinancialTimeseries.Test
                    , FinancialTimeseries.Type.Chart
                    , FinancialTimeseries.Type.Fraction
+                   , FinancialTimeseries.Type.Histogram
                    , FinancialTimeseries.Type.Labeled
                    , FinancialTimeseries.Type.Long
                    , FinancialTimeseries.Type.MonteCarlo

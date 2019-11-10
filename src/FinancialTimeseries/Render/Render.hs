@@ -31,6 +31,7 @@ import FinancialTimeseries.Render.Css ((!))
 import FinancialTimeseries.Render.HtmlReader (HtmlReader)
 import FinancialTimeseries.Render.Table (table)
 import FinancialTimeseries.Type.Chart (Chart(..), LChart, ParaCurve(..))
+import FinancialTimeseries.Type.Histogram (Histogram(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.MonteCarlo (Broom(..), MonteCarlo(..))
@@ -128,4 +129,18 @@ instance (Real a, E.PlotValue a, Pretty params) => Render (LChart params UTCTime
 instance (Real a, E.PlotValue a, Pretty params) => Render (LChart params Double a) where
   render xs c =
     let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
+    in fmap (h <>) (renderChart c)
+
+instance Render (Histogram (Vector Double, Vector Int)) where
+  render xs (Histogram (bs, hs)) =
+    let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
+        b0 = bs Vec.! 0
+        b1 = bs Vec.! 1
+        b = b1-b0
+
+        f x y = Vec.fromList [(x, y), (x+b, y)]
+        us = Vec.concat (Vec.toList (Vec.zipWith f bs hs))
+        
+        -- us = Vec.map (+((b1-b0)/2)) bs
+        c = Chart "Trade Yield Histogram" [Labeled "Yield Distribution" [us]]
     in fmap (h <>) (renderChart c)
