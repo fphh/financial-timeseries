@@ -76,7 +76,6 @@ instance PlotLine [Vector (x, a)] where
   plotLine (Labeled ttle xs) = E.plot (E.line (pretty ttle) (map Vec.toList xs))
 
 
--- instance PlotLine (ParaCurve (E.EC (E.Layout x a) ()) [Vector (x, a)]) where
 instance PlotLine (ParaCurve Vector x a) where
   type TyX (ParaCurve Vector x a) = x
   type TyY (ParaCurve Vector x a) = a
@@ -111,6 +110,3 @@ renderChart (Chart ctitle cs) = do
     $ do
     E.layout_title DP..= ctitle
     mapM_ plotLine cs
-    
-    -- mapM_ (\(Labeled ttle xs) -> E.plot (E.line (pretty ttle) (map Vec.toList xs))) cs
-

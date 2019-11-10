@@ -41,8 +41,6 @@ import FinancialTimeseries.Type.Short (Short(..))
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
 
-
-
 class Render a where
   render :: [String] -> a -> HtmlReader Html
 
@@ -134,13 +132,9 @@ instance (Real a, E.PlotValue a, Pretty params) => Render (LChart params Double 
 instance Render (Histogram (Vector Double, Vector Int)) where
   render xs (Histogram (bs, hs)) =
     let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " xs))
-        b0 = bs Vec.! 0
-        b1 = bs Vec.! 1
-        b = b1-b0
-
-        f x y = Vec.fromList [(x, y), (x+b, y)]
+        db = (bs Vec.! 1) - (bs Vec.! 0)
+        f x y = Vec.fromList [(x, 0), (x, y), (x+db, y), (x+db, 0)]
         us = Vec.concat (Vec.toList (Vec.zipWith f bs hs))
-        
-        -- us = Vec.map (+((b1-b0)/2)) bs
+
         c = Chart "Trade Yield Histogram" [Labeled "Yield Distribution" [us]]
     in fmap (h <>) (renderChart c)
