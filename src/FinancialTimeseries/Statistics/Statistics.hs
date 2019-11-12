@@ -91,10 +91,10 @@ mments sorted =
     }
 
      
-mkStatisticsWithMoments ::
+statisticsWithMoments ::
   (Ord a, Num a, Fractional a, Real a) =>
   (Vector a -> moments a) -> Vector a -> Stats moments a
-mkStatisticsWithMoments mms vs =
+statisticsWithMoments mms vs =
   let noe = fromIntegral (Vec.length vs)
       sorted = Vec.modify Merge.sort vs
 
@@ -126,10 +126,13 @@ mkStatisticsWithMoments mms vs =
     , cdf = Vec.imap (\i x -> (fromIntegral i / noe, x)) sorted
     }
 
-mkStatistics ::
-  (Ord a, Num a, Fractional a, Real a) =>
-  Vector a -> Stats Moments a
-mkStatistics = mkStatisticsWithMoments mments
+class MkStatistics mom where
+  mkStatistics ::
+    (Ord a, Num a, Fractional a, Real a) =>
+    Vector a -> Stats mom a
+
+instance MkStatistics Moments where
+  mkStatistics = statisticsWithMoments mments
 
 
 yield :: (Fractional a) => Vector a -> a
