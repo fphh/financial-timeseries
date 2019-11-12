@@ -12,7 +12,7 @@ import Data.Vector (Vector)
 
 import qualified System.Random as R
 
-import FinancialTimeseries.Statistics.Statistics (Stats(..), mkStatistics, yield, absoluteDrawdown, relativeDrawdown)
+import FinancialTimeseries.Statistics.Statistics (Moments, Stats(..), mkStatistics, yield, absoluteDrawdown, relativeDrawdown)
 import FinancialTimeseries.Type.Chart (Chart(..), LChart)
 import FinancialTimeseries.Type.Fraction (Fraction)
 import FinancialTimeseries.Type.Labeled (Labeled(..))
@@ -84,7 +84,7 @@ mc cfg xs =
 
 
 
-stats2list :: [Labeled params (Stats a)] -> [Table params a]
+stats2list :: [Labeled params (Stats Moments a)] -> [Table params a]
 stats2list xs =
   let qheaders = map CString ["Q05", "Q25", "Q50", "Q75", "Q95", "Sample Size"]
       pheaders = map CString ["P(X < 0.5)", "P(X < 0.75)", "P(X < 1.0)", "P(X < 1.25)", "P(X < 1.5)", "P(X < 1.75)", "P(X < 2.0)", "Sample Size"]
@@ -95,7 +95,7 @@ stats2list xs =
      : Table "Probabilities" pheaders (map (fmap (mkRow probabilities)) xs)
      : []
 
-stats2cdfChart :: [Labeled params (Stats a)] -> LChart params Double a
+stats2cdfChart :: [Labeled params (Stats Moments a)] -> LChart params Double a
 stats2cdfChart = Chart "CDF" . map (fmap ((:[]) . cdf))
 
 metrics ::

@@ -47,21 +47,56 @@ data Moments a = Moments {
 instance Row Moments where
   row (Moments a b c d) = map Cell [a, b, c, d]
 
-data Stats a = Stats {
+data ChainedYieldMoments a = ChainedYieldMoments {
+  cmaxYield :: !a
+  , cminYield :: !a
+  , cmeanYield :: !a
+  , cstdDevYield :: !a
+  } deriving (Show)
+  
+instance Row ChainedYieldMoments where
+  row (ChainedYieldMoments a b c d) = map Cell [a, b, c, d]
+
+data Stats moments a = Stats {
   sampleSize :: Int
   , quantiles :: Quantiles a
   , probabilities :: Probabilities a
-  , moments :: Moments a
+  , moments :: moments a
   , cdf :: Vector (Double, a)
   } deriving (Show)
 
-mkStatistics ::
+
+chainedYieldMoments ::
+  (Real a, Fractional a) =>
+  Vector a -> ChainedYieldMoments a
+chainedYieldMoments sorted =
+  let sortedFrac = Vec.map realToFrac sorted
+  in ChainedYieldMoments {
+    cmaxYield = Vec.last sorted
+    , cminYield = Vec.head sorted
+    , cmeanYield = realToFrac $ exp (Sample.mean (Vec.map log sortedFrac))
+    , cstdDevYield = realToFrac $ exp (Sample.stdDev (Vec.map log sortedFrac))
+    }
+     
+mments ::
+  (Real a, Fractional a) =>
+  Vector a -> Moments a
+mments sorted =
+  let sortedFrac = Vec.map realToFrac sorted
+  in Moments {
+    maxYield = Vec.last sorted
+    , minYield = Vec.head sorted
+    , meanYield = realToFrac $ Sample.mean sortedFrac
+    , stdDevYield = realToFrac $ Sample.stdDev sortedFrac
+    }
+
+     
+mkStatisticsWithMoments ::
   (Ord a, Num a, Fractional a, Real a) =>
-  Vector a -> Stats a
-mkStatistics vs =
+  (Vector a -> moments a) -> Vector a -> Stats moments a
+mkStatisticsWithMoments mms vs =
   let noe = fromIntegral (Vec.length vs)
       sorted = Vec.modify Merge.sort vs
-      sortedFrac = Vec.map realToFrac sorted
 
       quart s = sorted Vec.! (round (s * noe :: Double))
       q = Quantiles {
@@ -83,24 +118,18 @@ mkStatistics vs =
         , p2'00 = prob 2.00
         }
 
-      m = Moments {
-        maxYield = Vec.last sorted
-        , minYield = Vec.head sorted
-        {-
-        , meanYield = realToFrac $ exp (Sample.mean (Vec.map log sortedFrac))
-        , stdDevYield = realToFrac $ exp (Sample.stdDev (Vec.map log sortedFrac))
--}
-        , meanYield = realToFrac $ Sample.mean sortedFrac
-        , stdDevYield = realToFrac $ Sample.stdDev sortedFrac
-        }
-        
   in Stats {
     sampleSize = Vec.length vs
     , quantiles = q
     , probabilities = p
-    , moments = m
+    , moments = mms sorted
     , cdf = Vec.imap (\i x -> (fromIntegral i / noe, x)) sorted
     }
+
+mkStatistics ::
+  (Ord a, Num a, Fractional a, Real a) =>
+  Vector a -> Stats Moments a
+mkStatistics = mkStatisticsWithMoments mments
 
 
 yield :: (Fractional a) => Vector a -> a
