@@ -31,8 +31,6 @@ url sym apikey = Simple.parseRequest_ $
   "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=" ++ sym
   ++ "&outputsize=full&datatype=json&apikey=" ++ apikey
 
-
-
 newtype Volume = Volume {
   unVolume :: Integer
   } deriving (Show)

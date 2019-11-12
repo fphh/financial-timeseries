@@ -34,4 +34,4 @@ perc :: (Num a, Real a) => a -> String
 perc = Text.unpack . format (fixed 2 % fromString "%") . (100*)
 
 instance Pretty Double where
-  pretty = Text.unpack . format (fixed 8)
+  pretty = Text.unpack . format (fixed 12)

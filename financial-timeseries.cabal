@@ -29,6 +29,8 @@ library
                    , FinancialTimeseries.Render.Table
                    , FinancialTimeseries.Report.Standard
                    , FinancialTimeseries.Source.Alphavantage
+                   , FinancialTimeseries.Source.Binance.Binance
+                   , FinancialTimeseries.Source.Binance.Symbol
                    , FinancialTimeseries.Statistics.Statistics
                    , FinancialTimeseries.Statistics.Trade
                    , FinancialTimeseries.Test

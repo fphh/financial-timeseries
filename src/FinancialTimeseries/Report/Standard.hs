@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module FinancialTimeseries.Report.Standard where
 
@@ -19,12 +20,12 @@ import qualified Graphics.Rendering.Chart.Easy as E
 import qualified Statistics.Sample.Histogram as Histo
 
 import qualified FinancialTimeseries.Algorithm.MonteCarlo as AMC
-import FinancialTimeseries.Algorithm.Evaluate (profit, long, short, evaluate, evaluateFraction, evaluateInvested, longEvaluate)
+import FinancialTimeseries.Algorithm.Evaluate (long, evaluate, evaluateFraction)
 import FinancialTimeseries.Render.Chart (chart)
 import FinancialTimeseries.Render.HtmlReader (Config, runHtmlReader)
 import FinancialTimeseries.Render.Render (display)
 import FinancialTimeseries.Render.Statement (statement, currentTime)
-import FinancialTimeseries.Statistics.Statistics (mkStatistics, yield)
+import FinancialTimeseries.Statistics.Statistics (yield, tradeStatistics, stats2cdfChart, stats2list)
 import FinancialTimeseries.Test (check_timeseries_prop)
 import FinancialTimeseries.Type.Fraction (Fraction(..))
 import FinancialTimeseries.Type.Histogram (Histogram(..))
@@ -42,10 +43,11 @@ data ReportConfig gen a = ReportConfig {
   now :: UTCTime
   , reportConfig :: Config
   , monteCarloConfig :: AMC.Config gen a
-  , strategy :: Strategy a -- TimeseriesRaw a -> Timeseries a
+  , strategy :: Strategy a
   }
 
 report ::
+  forall gen a.
   (R.RandomGen gen, Num a, Fractional a, Real a, E.PlotValue a, Show a, Pretty a) =>
   ReportConfig gen a -> TimeseriesRaw a -> H5.Html
 report cfg ts =
@@ -58,8 +60,8 @@ report cfg ts =
         in fmap (fmap (bimap k k)) lg
 
       tradeYields =
-        let  j ys = (fmap AMC.stats2cdfChart ys, fmap AMC.stats2list ys)
-             k = j . fmap ((:[]) . Labeled "Trade Yields" . mkStatistics)
+        let  j zs = (fmap stats2cdfChart zs, fmap stats2list zs)
+             k = j . fmap ((:[]) . Labeled "Trade Yields" . tradeStatistics)
         in fmap (fmap (snd . fmap k)) yields
       
 
@@ -69,9 +71,9 @@ report cfg ts =
         in fmap (bimap k k . distributePair) (evaluate (convert (first ts)) lg)
 
       histogram =
-        let histo ys =
-              let n = round (fromIntegral (Vec.length ys) / fromIntegral 5)
-              in Histogram (Histo.histogram n (Vec.map realToFrac ys) :: (Vector Double, Vector Int))
+        let histo zs =
+              let n = round (fromIntegral (Vec.length zs) / fromIntegral 5)
+              in Histogram (Histo.histogram n (Vec.map realToFrac zs) :: (Vector Double, Vector Int))
         in fmap (fmap (fmap histo . snd)) yields
 
       ms = map (\f -> mteCrlo f (evaluateFraction f)) (AMC.fractions (monteCarloConfig cfg))

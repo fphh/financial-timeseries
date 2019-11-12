@@ -12,12 +12,12 @@ import Data.Vector (Vector)
 
 import qualified System.Random as R
 
-import FinancialTimeseries.Statistics.Statistics (Moments, Stats(..), mkStatistics, yield, absoluteDrawdown, relativeDrawdown)
-import FinancialTimeseries.Type.Chart (Chart(..), LChart)
+import FinancialTimeseries.Statistics.Statistics (timeseriesStatistics, stats2cdfChart, stats2list, yield, absoluteDrawdown, relativeDrawdown)
+import FinancialTimeseries.Type.Chart (LChart)
 import FinancialTimeseries.Type.Fraction (Fraction)
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.MonteCarlo (MonteCarlo(..))
-import FinancialTimeseries.Type.Table (Cell(..), Table(..), row)
+import FinancialTimeseries.Type.Table (Table(..))
 import FinancialTimeseries.Type.Types (Equity(..), TradeYield(..), TimeseriesYield(..), AbsoluteDrawdown(..), RelativeDrawdown(..), Invested(..), NotInvested(..))
 import FinancialTimeseries.Util.DistributivePair (DistributivePair, undistributePair)
 
@@ -84,28 +84,14 @@ mc cfg xs =
 
 
 
-stats2list :: [Labeled params (Stats Moments a)] -> [Table params a]
-stats2list xs =
-  let qheaders = map CString ["Q05", "Q25", "Q50", "Q75", "Q95", "Sample Size"]
-      pheaders = map CString ["P(X < 0.5)", "P(X < 0.75)", "P(X < 1.0)", "P(X < 1.25)", "P(X < 1.5)", "P(X < 1.75)", "P(X < 2.0)", "Sample Size"]
-      mheaders = map CString ["Max.", "Min.", "Mean", "StdDev.", "Sample Size"]
-      mkRow g x = row (g x) ++ [CInt (sampleSize x)]
-  in Table "Quantiles" qheaders (map (fmap (mkRow quantiles)) xs)
-     : Table "Moments" mheaders (map (fmap (mkRow moments)) xs)
-     : Table "Probabilities" pheaders (map (fmap (mkRow probabilities)) xs)
-     : []
-
-stats2cdfChart :: [Labeled params (Stats Moments a)] -> LChart params Double a
-stats2cdfChart = Chart "CDF" . map (fmap ((:[]) . cdf))
-
 metrics ::
   (Distributive f, Distributive g, DistributivePair g, Fractional b, Real b) =>
   (Labeled params a -> g (Labeled params (Vector b)))
   -> [f (Labeled params (MonteCarlo (NotInvested a, Invested a)))]
   -> f (MonteCarlo (g (NotInvested (LChart params Double b, [Table params b]), Invested (LChart params Double b, [Table params b]))))
-metrics mcf =
+metrics mcf = 
   let k xs = 
-        let ys = fmap (map (fmap mkStatistics)) (distribute (map mcf xs))
+        let ys = fmap (map (fmap timeseriesStatistics)) (distribute (map mcf xs))
         in undistributePair (fmap stats2cdfChart ys, fmap stats2list ys) 
 
       f (Labeled p x) = bimap (distribute . Labeled p) (distribute . Labeled p) x

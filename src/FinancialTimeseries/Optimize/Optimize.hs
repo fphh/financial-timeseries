@@ -12,7 +12,6 @@ import qualified Data.Vector as Vec
 
 import Data.Maybe (catMaybes)
 
-import qualified Statistics.Sample as Sample
 import qualified Statistics.Test.StudentT as StudentT
 import qualified Statistics.Test.Types as TTypes
 import qualified Statistics.Types as Types
@@ -20,13 +19,12 @@ import qualified Statistics.Types as Types
 
 import FinancialTimeseries.Algorithm.Evaluate (long)
 
-import FinancialTimeseries.Statistics.Statistics (yield)
+import FinancialTimeseries.Statistics.Statistics (tradeStatistics, trMeanYield, moments, sampleSize, yield)
 
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.Strategy (Strategy(..))
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), slice)
-import FinancialTimeseries.Type.Table (Cell(..), Row, row)
-import FinancialTimeseries.Type.Types (TimeseriesYield(..), TradeYield(..), NotInvested(..), Invested(..), partitionInvested)
+import FinancialTimeseries.Type.Types (TimeseriesYield(..), TradeYield(..), Invested(..), partitionInvested)
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
 data OptimizeConfig optParams a = OptimizeConfig {
@@ -66,7 +64,7 @@ equalDistribution n pval (Long (TradeYield (Invested vs))) =
 
 
 optimize ::
-  (Fractional a, Real a) =>
+  (Fractional a, Real a, Floating a) =>
   OptimizeConfig optParams a -> TimeseriesRaw a -> [(optParams, TimeseriesYield a)]
 optimize (OptimizeConfig strgy ps) ts =
   let ss = map (\p -> (p, evalStrategy ts (strgy p))) ps
@@ -76,7 +74,9 @@ optimize (OptimizeConfig strgy ps) ts =
 
       bs = filter (equalDistribution n pval . snd) ss
 
-      f (Long (TradeYield (Invested vs))) = TimeseriesYield {- (Vec.product vs) -} (Vec.sum vs / fromIntegral (Vec.length vs))
+      f (Long (TradeYield (Invested vs))) =
+        let stats = tradeStatistics vs
+        in TimeseriesYield (trMeanYield (moments stats) ** fromIntegral (sampleSize stats))
       cs = map (fmap f) bs
       
       ds = List.sortBy (compare `on` snd) cs
