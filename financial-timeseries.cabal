@@ -29,8 +29,10 @@ library
                    , FinancialTimeseries.Render.Table
                    , FinancialTimeseries.Report.Standard
                    , FinancialTimeseries.Source.Alphavantage
+                   , FinancialTimeseries.Source.Binance.BarLength
                    , FinancialTimeseries.Source.Binance.Binance
                    , FinancialTimeseries.Source.Binance.Symbol
+                   , FinancialTimeseries.Source.Row
                    , FinancialTimeseries.Statistics.Statistics
                    , FinancialTimeseries.Statistics.Trade
                    , FinancialTimeseries.Test
@@ -81,6 +83,7 @@ library
                      , colour
                      , formatting
                      , bifunctors
+                     , scientific
 
   hs-source-dirs:      src
   default-language:    Haskell2010
