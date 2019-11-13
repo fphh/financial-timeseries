@@ -7,7 +7,7 @@ import qualified Data.Vector as Vec
 import qualified Statistics.Sample as Sample
 
 import FinancialTimeseries.Type.Labeled (Labeled(..))
-import FinancialTimeseries.Type.Segment (Segment(..))
+import FinancialTimeseries.Type.Segment (Segment(..), HalfSegment(..))
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), Timeseries(..))
 import FinancialTimeseries.Type.Types (Price(..))
 
@@ -42,17 +42,20 @@ movingAverage (Window m) ts@(TimeseriesRaw _ (Price vs)) =
         
       xs = Vec.ifoldr' f [] (Vec.zip us (Vec.tail us))
 
-      g [] = []
-      g [_] = []
-      g (Up i:Down j:zs) = Segment i j : g zs
+      g [] = (Nothing, [])
+      g [Up i] = (Just (HalfSegment i), [])
+      g (Up i:Down j:zs) = fmap (Segment i j :) (g zs)
       g (Down _:zs) = g zs
-      g (Up _:zs) = g zs
+      -- g (Up _:zs) = g zs
       
       h (t, s, _) = (t, s)
+
+      (hs, isegs) = g xs
       
       res = Timeseries {
         timeseriesRaw = ts
-        , investedSegments = g xs
+        , investedSegments = isegs
+        , lastSegment = hs
         , additionalSeries = [Labeled "Moving Average" (Price (Vec.map h us))]
         }
   in res

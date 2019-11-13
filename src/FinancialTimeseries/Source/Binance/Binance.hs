@@ -6,42 +6,29 @@ module FinancialTimeseries.Source.Binance.Binance where
 
 import Control.Applicative (liftA2)
 
--- import Data.Ord (comparing)
-
-import Data.Scientific (toBoundedInteger)
-
-import Data.Time (NominalDiffTime, UTCTime, parseTimeM, defaultTimeLocale)
+import Data.Time (UTCTime)
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds, posixSecondsToUTCTime)
 
 import qualified Data.Vector as Vec
 import Data.Vector (Vector)
-import Data.Vector.Algorithms.Intro (sortBy)
 
 import qualified Data.Text as Text
-import Data.Text (Text)
-
-import qualified Data.Map as Map
-import Data.Map (Map)
 
 import Text.Read (readMaybe)
 
-import qualified Data.HashMap.Strict as HM
-
 import qualified Data.Aeson as Ae
-import Data.Aeson (Value)
 
 import qualified Network.HTTP.Simple as Simple
 
 import FinancialTimeseries.Source.Binance.BarLength (BarLength(..))
-import FinancialTimeseries.Source.Row (Row(..), Extract(..), Volume(..))
+import FinancialTimeseries.Source.Row (Row(..), Volume(..))
 import FinancialTimeseries.Source.Binance.Symbol (Symbol)
 
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..))
 import FinancialTimeseries.Type.Types (Price(..))
 
-import FinancialTimeseries.Util.Pretty (Pretty, pretty)
+import FinancialTimeseries.Util.Pretty (pretty)
 
-import Debug.Trace (trace)
 
 newtype Interval = Interval {
   unInterval :: Int
@@ -121,16 +108,18 @@ getDataHelper request = do
         c <- fmap Price (toNumber (as Vec.! 4))
         v <- fmap Volume (toNumber (as Vec.! 5))
         t <- case as Vec.! 6 of
-               Ae.Number sec -> Just (posixSecondsToUTCTime (fromIntegral (round sec) / 1000))
+               Ae.Number sec -> Just (posixSecondsToUTCTime (fromIntegral (round sec :: Integer) / 1000))
                _ -> Nothing
         
         let row = Row o h l c v
 
         return (t, row)
-        
+      f _ = Nothing
+  
       us =
         case Simple.getResponseBody response of
           Ae.Array xs -> Vec.map f xs
+          _ -> Vec.singleton Nothing
 
   return (sequence us)
 

@@ -24,8 +24,11 @@ import FinancialTimeseries.Algorithm.MovingAverage (Window(..), movingAverage)
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), Price(..), partitionInvested)
-import FinancialTimeseries.Type.Segment (segments, Segment(..))
+import FinancialTimeseries.Type.Segment (Segment(..), HalfSegment(..), segments)
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), Timeseries(..), slice)
+
+
+import Debug.Trace (trace)
 
 
 
@@ -48,10 +51,38 @@ instance QC.Arbitrary ListOfSegments where
                 True -> 0
                 False -> to (List.last ys) + 1
 
+newtype TSR = TSR {
+  unTSR :: TimeseriesRaw Double
+  } deriving (Show)
+
+instance QC.Arbitrary TSR where
+  arbitrary = do
+    let Just d = parseTimeM True defaultTimeLocale "%Y-%-m-%-d" "2010-3-04" :: Maybe UTCTime
+        f i = fmap (\x -> (realToFrac i `addUTCTime` d, x)) (QC.choose (10, 20))
+
+    len <- QC.choose (0, 500)
+    us <- Vec.generateM len f 
+    return $ TSR $ TimeseriesRaw {
+      name = "arbitrary"
+      , timeseries = Price us
+      }
+
 
 newtype TS = TS {
   unTS :: Timeseries Double
   } deriving (Show)
+
+
+{-
+instance QC.Arbitrary TS where
+  arbitrary = do
+    TSR ts@(TimeseriesRaw _ (Price vs)) <- QC.arbitrary
+    let len = Vec.length vs
+    start <- QC.choose (0, 3)
+    xs <- QC.listOf 
+    undefined
+-}
+
 
 instance QC.Arbitrary TS where
   arbitrary = do
@@ -70,6 +101,7 @@ instance QC.Arbitrary TS where
       , investedSegments = seg
       , additionalSeries = []
       }
+
 
 
 timeseriesTest2 :: IO (Timeseries Double)
@@ -111,7 +143,7 @@ prop_segment_all_less (ListOfSegments _ ss) =
 -- --------------------------------------------------------------------------
 
 check_timeseries_prop :: Timeseries a -> Bool
-check_timeseries_prop (Timeseries (TimeseriesRaw _ ts) ss _) =
+check_timeseries_prop (Timeseries (TimeseriesRaw _ ts) ss _ _) =
   check_segment_length_non_zero_prop ss
   && check_segment_last_idx_prop (Vec.length (unPrice ts) - 1) ss
   && check_segment_all_less_prop ss
@@ -123,7 +155,7 @@ prop_timeseries (TS ts) =
 -- --------------------------------------------------------------------------
 
 prop_alternating_inv_ninv_segment :: TS -> Bool
-prop_alternating_inv_ninv_segment (TS (Timeseries _ ss _)) =
+prop_alternating_inv_ninv_segment (TS (Timeseries _ ss _ _)) =
   let segs = segments ss
       f (Left (NotInvested _)) (Right (Invested _)) = True
       f (Right (Invested _)) (Left (NotInvested _)) = True
@@ -143,7 +175,7 @@ prop_alternating_inv_ninv_slice (TS ts) =
 -- --------------------------------------------------------------------------
 
 prop_slice :: TS -> Bool
-prop_slice (TS ts@(Timeseries (TimeseriesRaw _ (Price as)) ss _)) =
+prop_slice (TS ts@(Timeseries (TimeseriesRaw _ (Price as)) ss _ _)) =
   let segs = segments ss
       Price slc = slice ts
       p (Right (Invested (Segment a b))) (Right (Invested v)) =
@@ -174,43 +206,43 @@ prop_evaluate (TS ts) =
 
 data MovingAvgTest = MovingAvgTest {
   window :: Window
-  , mavgTs :: Timeseries Double
+  , mavgTs :: TimeseriesRaw Double
   } deriving (Show)
 
 instance QC.Arbitrary MovingAvgTest where
   arbitrary = do
-    TS us <- QC.arbitrary `QC.suchThat` ((>0) . Vec.length . unPrice . timeseries . timeseriesRaw . unTS)
-    let len = Vec.length (unPrice (timeseries (timeseriesRaw us)))
-    m <- QC.choose (1, len)
+    TSR us <- QC.arbitrary `QC.suchThat` ((>0) . Vec.length . unPrice . timeseries . unTSR)
+    let len = Vec.length (unPrice (timeseries us))
+    m <- QC.choose (1, min len 10)
     return $ MovingAvgTest {
       window = Window m
       , mavgTs = us
       }
       
 check_moving_avg_props :: MovingAvgTest -> Bool
-check_moving_avg_props (MovingAvgTest (Window m) (Timeseries ts _ _)) =
+check_moving_avg_props (MovingAvgTest (Window m) ts) =
   m > 0
   && Vec.length (unPrice (timeseries ts)) >= m
 
 prop_moving_avg_timeseries_props :: MovingAvgTest -> Bool
-prop_moving_avg_timeseries_props (MovingAvgTest m (Timeseries ts _ _)) =
+prop_moving_avg_timeseries_props (MovingAvgTest m ts) =
   let us = movingAverage m ts
   in check_timeseries_prop us
 
 prop_moving_avg_length :: MovingAvgTest -> Bool
-prop_moving_avg_length (MovingAvgTest w@(Window m) (Timeseries ts _ _)) =
-  let Timeseries (TimeseriesRaw _ (Price ss)) _ (Labeled _ (Price as):_) = movingAverage w ts
+prop_moving_avg_length (MovingAvgTest w@(Window m) ts) =
+  let Timeseries (TimeseriesRaw _ (Price ss)) _ _ (Labeled _ (Price as):_) = movingAverage w ts
   in Vec.length as == Vec.length ss - m + 1
 
 prop_moving_avg_alignment :: MovingAvgTest -> Bool
-prop_moving_avg_alignment (MovingAvgTest w@(Window m) (Timeseries ts _ _)) =
-  let Timeseries (TimeseriesRaw _ (Price ss)) _ (Labeled _ (Price as):_) = movingAverage w ts
+prop_moving_avg_alignment (MovingAvgTest w@(Window m) ts) =
+  let Timeseries (TimeseriesRaw _ (Price ss)) _ _ (Labeled _ (Price as):_) = movingAverage w ts
       zs = Vec.drop (m-1) ss
   in Vec.map fst as == Vec.map fst zs
 
 prop_moving_avg_segment_indices :: MovingAvgTest -> Bool
-prop_moving_avg_segment_indices (MovingAvgTest w@(Window m) (Timeseries ts _ _)) =
-  let Timeseries (TimeseriesRaw _ (Price ss)) segs (Labeled _ (Price as):_) = movingAverage w ts
+prop_moving_avg_segment_indices (MovingAvgTest w@(Window m) ts) =
+  let Timeseries (TimeseriesRaw _ (Price ss)) segs _ (Labeled _ (Price as):_) = movingAverage w ts
       zs = Vec.drop (m-1) ss
       tsegs = map (\(Segment a b) -> Segment (a-m+1) (b-m+1)) segs
       
@@ -281,12 +313,28 @@ prop_montecarlo_mean_profit (StatsHelper v vs) =
 
 -- --------------------------------------------------------------------------
 
+
+prop_timeseries_halfsegment :: MovingAvgTest -> Bool
+prop_timeseries_halfsegment x@(MovingAvgTest w ts) =
+  let ms = movingAverage w ts
+  in case lastSegment ms of
+       Nothing -> True
+       Just (HalfSegment i) ->
+         case investedSegments ms of
+           [] -> True
+           xs ->
+             let Segment _ k = last xs
+             in k < i && i < Vec.length (unPrice (timeseries (timeseriesRaw ms)))
+
+
+-- --------------------------------------------------------------------------
+
 check :: (QC.Testable a) => a -> IO ()
 check = QC.quickCheck . QC.withMaxSuccess 10000
  
 test :: IO ()
 test = do
-  
+
   check prop_segment_length_non_zero
   check prop_segment_last_idx
   check prop_segment_all_less
@@ -300,6 +348,8 @@ test = do
   check prop_moving_avg_length
   check prop_moving_avg_alignment
   check prop_moving_avg_segment_indices
+
+  check prop_timeseries_halfsegment
 
   -- check prop_statistics_mean
 

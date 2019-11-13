@@ -48,7 +48,7 @@ chart ::
   (E.PlotValue a, Fractional a) =>
   Equity (Vector (UTCTime, a)) -> [Timeseries a] -> LChart String UTCTime a
 chart res vs =
-  let f (Timeseries (TimeseriesRaw nam (Price ts)) segs as) =
+  let f (Timeseries (TimeseriesRaw nam (Price ts)) segs halfSeg as) =
         let (_, mi) = Vec.minimumBy (compare `on` snd) ts
             (_, ma) = Vec.maximumBy (compare `on` snd) ts
             m = mi + (ma - mi) * 0.8

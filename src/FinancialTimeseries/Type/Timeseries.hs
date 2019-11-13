@@ -18,7 +18,7 @@ import qualified Data.List as List
 import Text.Printf (PrintfArg, printf)
 
 import FinancialTimeseries.Type.Labeled (Labeled(..))
-import FinancialTimeseries.Type.Segment (Segment(..), segments)
+import FinancialTimeseries.Type.Segment (Segment(..), HalfSegment(..), segments)
 import FinancialTimeseries.Type.Types (NotInvested, Invested, Price(..))
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
@@ -31,6 +31,7 @@ data TimeseriesRaw a = TimeseriesRaw {
 data Timeseries a = Timeseries {
   timeseriesRaw :: TimeseriesRaw a
   , investedSegments :: [Segment]
+  , lastSegment :: Maybe HalfSegment
   , additionalSeries :: [Labeled String (Price (Vector (UTCTime, a)))]
   } deriving (Show, Read)
 
@@ -39,8 +40,8 @@ first :: TimeseriesRaw a -> Price (UTCTime, a)
 first = fmap Vec.head . timeseries
 
 
-timeline :: forall a. (Ord a, PrintfArg a) => [Segment] -> Vector (UTCTime, a) -> [Vector (UTCTime, a)] -> [String]
-timeline is v vs =
+timeline :: forall a. (Ord a, PrintfArg a) => [Segment] -> Maybe HalfSegment -> Vector (UTCTime, a) -> [Vector (UTCTime, a)] -> [String]
+timeline is hs v vs =
   let idx i = if or (map (\(Segment a b) -> a <= i && i <= b) is) then 'i' else ' '
 
       m = Map.fromList (Vec.toList (Vec.imap (\i (t, x) -> (t, Right (idx i, i, x))) v))
@@ -52,15 +53,16 @@ timeline is v vs =
       g (Right (c, i, x)) = printf "%2c%4d%8.4f" c i x
       f k = show k ++ " | " ++ concatMap (maybe (replicate 24 ' ') g . Map.lookup k) (m:ms)
       res = map f tl
-  in res
+  in res ++ ["\n" ++ show hs]
 
 instance (Show a, Ord a, PrintfArg a) => Pretty (Timeseries a) where
-  pretty (Timeseries (TimeseriesRaw n as) ss vs) =
-    let tl = timeline ss (unPrice as) (map (unPrice . content) vs)
+  pretty (Timeseries (TimeseriesRaw n as) ss hs vs) =
+    let tl = timeline ss hs (unPrice as) (map (unPrice . content) vs)
     in n ++ "\n" ++ (map (const '-') n) ++ "\n" ++ List.intercalate "\n" tl
 
+-- Only full segments. Ignoring last half segment.
 slice :: Timeseries a -> Price [(Either (NotInvested (Vector (UTCTime, a))) (Invested (Vector (UTCTime, a))))]
-slice (Timeseries (TimeseriesRaw _ (Price as)) is _) =
+slice (Timeseries (TimeseriesRaw _ (Price as)) is _ _) =
   let ss = segments is
       f (Segment a b) = Vec.slice a (b-a+1) as
   in Price (map (bimap (fmap f) (fmap f)) ss)
@@ -75,6 +77,7 @@ timeseriesTest =
         , timeseries = Price (Vec.generate 40 (\i -> (realToFrac i `addUTCTime` d, 2 + sin (0.5*fromIntegral i))))
         }
     , investedSegments = [Segment 2 3, Segment 7 9]
+    , lastSegment = Nothing
     , additionalSeries = []
     }
 

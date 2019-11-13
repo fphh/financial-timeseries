@@ -4,8 +4,6 @@ module FinancialTimeseries.Optimize.Optimize where
 
 import Data.Function (on)
 
-import Data.Bifunctor (bimap)
-
 import qualified Data.List as List
 
 import qualified Data.Vector as Vec
@@ -25,7 +23,8 @@ import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.Strategy (Strategy(..))
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), slice)
 import FinancialTimeseries.Type.Types (TimeseriesYield(..), TradeYield(..), Invested(..), partitionInvested)
-import FinancialTimeseries.Util.Pretty (Pretty, pretty)
+
+
 
 data OptimizeConfig optParams a = OptimizeConfig {
   strategy :: optParams -> Strategy a
@@ -49,7 +48,7 @@ equalDistribution ::
   (Real a) =>
   Int -> Types.PValue Double -> Long (TradeYield (Invested (Vec.Vector a))) -> Bool
 equalDistribution n pval (Long (TradeYield (Invested vs))) =
-  let x = ceiling (fromIntegral (Vec.length vs) / fromIntegral n)
+  let x = ceiling ((fromIntegral (Vec.length vs) / fromIntegral n) :: Double)
   
       f xs | Vec.length xs == 0 = []
       f xs = chunk xs

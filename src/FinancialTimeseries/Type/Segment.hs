@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
 
 
 module FinancialTimeseries.Type.Segment where
@@ -6,8 +5,12 @@ module FinancialTimeseries.Type.Segment where
 import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..))
 
 data Segment = Segment {
-  from :: !Int
-  , to :: !Int
+  from :: Int
+  , to :: Int
+  } deriving (Show, Read)
+
+newtype HalfSegment = HalfSegment {
+  unHalfSegment :: Int
   } deriving (Show, Read)
 
 inv :: b -> Either a (Invested b)
