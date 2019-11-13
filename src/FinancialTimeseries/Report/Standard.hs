@@ -36,22 +36,22 @@ import FinancialTimeseries.Type.Timeseries (TimeseriesRaw, first, slice)
 import FinancialTimeseries.Type.Types (Equity(..), Price(..), partitionInvested)
 
 import FinancialTimeseries.Util.DistributivePair (distributePair)
-import FinancialTimeseries.Util.Pretty (Pretty)
+import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
 
-data ReportConfig gen a = ReportConfig {
+data ReportConfig params gen a = ReportConfig {
   now :: UTCTime
   , reportConfig :: Config
   , monteCarloConfig :: AMC.Config gen a
-  , strategy :: Strategy a
+  , parameters :: params
+  , strategy :: params -> Strategy a
   }
 
 report ::
-  forall gen a.
-  (R.RandomGen gen, Num a, Fractional a, Real a, E.PlotValue a, Show a, Pretty a) =>
-  ReportConfig gen a -> TimeseriesRaw a -> H5.Html
+  (Pretty params, R.RandomGen gen, Num a, Fractional a, Real a, E.PlotValue a, Show a, Pretty a) =>
+  ReportConfig params gen a -> TimeseriesRaw a -> H5.Html
 report cfg ts =
-  let t = unStrategy (strategy cfg) ts
+  let t = unStrategy (strategy cfg (parameters cfg)) ts
       lg = long (partitionInvested (slice t))
       mteCrlo = AMC.mc (monteCarloConfig cfg) lg
 
@@ -86,6 +86,7 @@ report cfg ts =
       html = runHtmlReader (reportConfig cfg) $ mconcat $
         currentTime (now cfg)
         : statement ("Timeseries is well formed: " ++ show (check_timeseries_prop t))
+        : statement ("Parameters: " ++ pretty (parameters cfg))
         : display tsCharts
         : display tradeYields
         : display histogram

@@ -33,10 +33,13 @@ table (Table ttle chs ts) =
       hcell c = H5.div ! "rTableHead" $ H5.toHtml c
       hrow cs = H5.div ! "rTableRow" $ mapM_ hcell cs
 
-      
-      
+      footer n = (: replicate len "") $
+        case n of
+          1 -> "1 row"
+          k -> show k ++ " rows"
+
   in H5.div ! "rTable" $ do
      hrow (ttle : replicate len "")
      mapM_ (row . map pretty) vs
-     row ((show (length ts) ++ " rows") : replicate len "")
+     row (footer (length ts))
 

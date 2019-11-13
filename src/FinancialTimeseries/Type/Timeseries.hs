@@ -59,21 +59,6 @@ instance (Show a, Ord a, PrintfArg a) => Pretty (Timeseries a) where
     let tl = timeline ss (unPrice as) (map (unPrice . content) vs)
     in n ++ "\n" ++ (map (const '-') n) ++ "\n" ++ List.intercalate "\n" tl
 
-    
-{-
-instance (Show a, Ord a, PrintfArg a) => Pretty (Timeseries a) where
-  pretty (Timeseries n as ss bs) =
-    let tl = timeline as (map snd bs)
-    in List.intercalate "\n" tl
-        idx i is = or (map (\(Segment a b) -> a <= i && i <= b) is)
-        f i (t, x) acc =
-          show i ++ "\t"
-          ++ printf "%c" (if idx i ss then 'i' else ' ')
-          ++ "\t" ++ show t ++ "\t" ++ show x ++ "\n"
-          ++ acc
-    in n ++ "\n" ++ (map (const '-') n) ++ "\n" ++ Vec.ifoldr' f "" as
--}
-
 slice :: Timeseries a -> Price [(Either (NotInvested (Vector (UTCTime, a))) (Invested (Vector (UTCTime, a))))]
 slice (Timeseries (TimeseriesRaw _ (Price as)) is _) =
   let ss = segments is
@@ -92,3 +77,20 @@ timeseriesTest =
     , investedSegments = [Segment 2 3, Segment 7 9]
     , additionalSeries = []
     }
+
+
+
+    
+{-
+instance (Show a, Ord a, PrintfArg a) => Pretty (Timeseries a) where
+  pretty (Timeseries n as ss bs) =
+    let tl = timeline as (map snd bs)
+    in List.intercalate "\n" tl
+        idx i is = or (map (\(Segment a b) -> a <= i && i <= b) is)
+        f i (t, x) acc =
+          show i ++ "\t"
+          ++ printf "%c" (if idx i ss then 'i' else ' ')
+          ++ "\t" ++ show t ++ "\t" ++ show x ++ "\n"
+          ++ acc
+    in n ++ "\n" ++ (map (const '-') n) ++ "\n" ++ Vec.ifoldr' f "" as
+-}

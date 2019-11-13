@@ -11,10 +11,14 @@ import FinancialTimeseries.Type.Segment (Segment(..))
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), Timeseries(..))
 import FinancialTimeseries.Type.Types (Price(..))
 
+import FinancialTimeseries.Util.Pretty (Pretty, pretty)
+
 newtype Window = Window {
   unWindow :: Int
   } deriving (Show)
 
+instance Pretty Window where
+  pretty = show
 
 data UpDown =
   Up Int

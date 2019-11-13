@@ -4,6 +4,8 @@
 
 module FinancialTimeseries.Source.Binance.Binance where
 
+import Control.Applicative (liftA2)
+
 -- import Data.Ord (comparing)
 
 import Data.Scientific (toBoundedInteger)
@@ -106,11 +108,12 @@ url RequestParams{..} =
 ]
 -}
 
-getData :: RequestParams -> IO (Maybe (Vector (UTCTime, Row)))
-getData request = do
+getDataHelper :: RequestParams -> IO (Maybe (Vector (UTCTime, Row)))
+getDataHelper request = do
   response <- Simple.httpJSON (url request)
   let toNumber (Ae.String str) = readMaybe (Text.unpack str)
       toNumber _ = Nothing
+      
       f (Ae.Array as) = do
         o <- fmap Price (toNumber (as Vec.! 1))
         h <- fmap Price (toNumber (as Vec.! 2))
@@ -131,34 +134,25 @@ getData request = do
 
   return (sequence us)
 
+  
+getData :: RequestParams -> IO (Maybe (Vector (UTCTime, Row)))
+getData req =
+  case limit req of
+    Nothing -> getDataHelper req
+    Just x | x <= 1000 -> getDataHelper req
+    
+    Just x -> do
+      v <- getDataHelper req
+      let newReq = req {
+            limit = Just (x - 1000)
+            , to = fmap (fst . Vec.head) v
+            }
+      vs <- getData newReq
+      return (liftA2 (Vec.++) vs v)
+
 
 getSymbol :: RequestParams -> IO (Maybe (TimeseriesRaw Double))
 getSymbol req = do
   ds <- getData req
   return (fmap (TimeseriesRaw (pretty (symbol req)) . Price . Vec.map (fmap (unPrice . close))) ds)
-
-  
-{-
-getTicker :: RequestParams -> IO (Vector Row)
-getTicker req =
-  case limit req of
-    Nothing -> getUnsafe req
-    Just x | x <= 1000 -> getUnsafe req
-    Just x -> do
-      v <- getUnsafe req
-      let newReq = req {
-            limit = Just (x - 1000)
-            , to = Just (fromDate (Vec.head v))
-            }
-      vs <- getTicker newReq
-      return (vs Vec.++ v)
-
-
-getTickers :: (Ord k, Foldable t) => (k -> RequestParams) -> t k -> IO (Map k (Vector Row))
-getTickers req qs =
-  let buildMap acc sym = do
-        ts <- getTicker (req sym)
-        return (Map.insert sym ts acc)
-  in foldM buildMap Map.empty qs
--}
 

@@ -69,7 +69,7 @@ optimize ::
 optimize (OptimizeConfig strgy ps) ts =
   let ss = map (\p -> (p, evalStrategy ts (strgy p))) ps
 
-      n = 3
+      n = 10
       pval = Types.mkPValue 0.05
 
       bs = filter (equalDistribution n pval . snd) ss
