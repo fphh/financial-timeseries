@@ -46,7 +46,7 @@ movingAverage (Window m) ts@(TimeseriesRaw _ (Price vs)) =
       g [Up i] = (Just (HalfSegment i), [])
       g (Up i:Down j:zs) = fmap (Segment i j :) (g zs)
       g (Down _:zs) = g zs
-      -- g (Up _:zs) = g zs
+      g (Up _:zs) = g zs
       
       h (t, s, _) = (t, s)
 

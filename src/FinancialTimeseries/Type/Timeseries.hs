@@ -39,7 +39,18 @@ data Timeseries a = Timeseries {
 first :: TimeseriesRaw a -> Price (UTCTime, a)
 first = fmap Vec.head . timeseries
 
+last :: TimeseriesRaw a -> Price (UTCTime, a)
+last = fmap Vec.last . timeseries
 
+length :: TimeseriesRaw a -> Int
+length = Vec.length . unPrice . timeseries
+
+
+addLast :: TimeseriesRaw a -> Price (UTCTime, a) -> TimeseriesRaw a
+addLast ts (Price x) = ts {
+  timeseries = Price (Vec.snoc (unPrice (timeseries ts)) x)
+  }
+  
 timeline :: forall a. (Ord a, PrintfArg a) => [Segment] -> Maybe HalfSegment -> Vector (UTCTime, a) -> [Vector (UTCTime, a)] -> [String]
 timeline is hs v vs =
   let idx i = if or (map (\(Segment a b) -> a <= i && i <= b) is) then 'i' else ' '

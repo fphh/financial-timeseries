@@ -6,7 +6,7 @@ module FinancialTimeseries.Source.Binance.Binance where
 
 import Control.Applicative (liftA2)
 
-import Data.Time (UTCTime)
+import Data.Time (UTCTime, getCurrentTime)
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds, posixSecondsToUTCTime)
 
 import qualified Data.Vector as Vec
@@ -17,6 +17,8 @@ import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
 import qualified Data.Aeson as Ae
+
+import qualified Data.HashMap.Strict as HM
 
 import qualified Network.HTTP.Simple as Simple
 
@@ -46,12 +48,12 @@ data RequestParams = RequestParams {
   }
 
 binanceBaseUrl :: String
-binanceBaseUrl = "https://api.binance.com/api/v3/klines"
+binanceBaseUrl = "https://api.binance.com/api/v3/"
 
 defaultRequestParams :: String -> Symbol -> BarLength -> RequestParams
 defaultRequestParams apiKey sym len =
   RequestParams {
-  baseUrl = binanceBaseUrl
+  baseUrl = binanceBaseUrl ++ "klines"
   , symbol = sym
   , apiKey = apiKey
   , barLength = len
@@ -95,13 +97,15 @@ url RequestParams{..} =
 ]
 -}
 
+toNumber :: (Read a) => Ae.Value -> Maybe a
+toNumber (Ae.String str) = readMaybe (Text.unpack str)
+toNumber _ = Nothing
+      
+      
 getDataHelper :: RequestParams -> IO (Maybe (Vector (UTCTime, Row)))
 getDataHelper request = do
   response <- Simple.httpJSON (url request)
-  let toNumber (Ae.String str) = readMaybe (Text.unpack str)
-      toNumber _ = Nothing
-      
-      f (Ae.Array as) = do
+  let f (Ae.Array as) = do
         o <- fmap Price (toNumber (as Vec.! 1))
         h <- fmap Price (toNumber (as Vec.! 2))
         l <- fmap Price (toNumber (as Vec.! 3))
@@ -145,3 +149,28 @@ getSymbol req = do
   ds <- getData req
   return (fmap (TimeseriesRaw (pretty (symbol req)) . Price . Vec.map (fmap (unPrice . close))) ds)
 
+
+data AvgPriceRequest = AvgPriceRequest {
+  avgBaseUrl :: String
+  , avgSymbol :: Symbol
+  }
+
+defaultAvgPriceRequest :: Symbol -> AvgPriceRequest
+defaultAvgPriceRequest sym = AvgPriceRequest {
+  avgBaseUrl = binanceBaseUrl ++ "avgPrice"
+  , avgSymbol = sym
+  }
+
+getAvgPrice :: AvgPriceRequest -> IO (Maybe (Price (UTCTime, Double)))
+getAvgPrice (AvgPriceRequest u s) = do
+  let req = Simple.parseRequest_ (u ++ "?symbol=" ++ pretty s)
+
+  response <- Simple.httpJSON req
+  
+  let as =
+        case Simple.getResponseBody response of
+          Ae.Object obj -> HM.lookup (Text.pack "price") obj >>= toNumber
+          _ -> Nothing
+          
+  now <- getCurrentTime
+  return (fmap (\x -> Price (now, x)) as)

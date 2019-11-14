@@ -331,7 +331,7 @@ prop_timeseries_halfsegment x@(MovingAvgTest w ts) =
 
 check :: (QC.Testable a) => a -> IO ()
 check = QC.quickCheck . QC.withMaxSuccess 10000
- 
+
 test :: IO ()
 test = do
 

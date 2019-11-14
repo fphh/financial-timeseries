@@ -36,6 +36,7 @@ library
                    , FinancialTimeseries.Statistics.Statistics
                    , FinancialTimeseries.Statistics.Trade
                    , FinancialTimeseries.Test
+                   , FinancialTimeseries.Trade.Paper.Paper
                    , FinancialTimeseries.Type.Chart
                    , FinancialTimeseries.Type.Fraction
                    , FinancialTimeseries.Type.Histogram

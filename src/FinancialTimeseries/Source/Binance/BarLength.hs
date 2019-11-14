@@ -3,6 +3,8 @@
 
 module FinancialTimeseries.Source.Binance.BarLength where
 
+import Data.Time (NominalDiffTime)
+
 import qualified Data.List as List
 
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
@@ -26,3 +28,14 @@ instance Pretty BarLength where
           "binance does not support interval '" ++ show bl ++ "'\n"
           ++ "Supported intervals are:\n" ++ List.intercalate "\n" (map (('\t':) . show . fst) bs)
     in maybe err id (List.lookup bl bs)
+
+
+
+toNominalDiffTime :: BarLength -> NominalDiffTime
+toNominalDiffTime bl = realToFrac $
+  case bl of
+    Min m -> 60*m
+    Hour h -> 60*60*h
+    Day d -> 24*60*60*d
+    Week w -> 7*24*60*60*w
+    Month m -> 30*7*24*60*60*m
