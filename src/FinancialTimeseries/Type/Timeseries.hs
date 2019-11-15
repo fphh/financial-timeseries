@@ -50,6 +50,7 @@ addLast :: TimeseriesRaw a -> Price (UTCTime, a) -> TimeseriesRaw a
 addLast ts (Price x) = ts {
   timeseries = Price (Vec.snoc (unPrice (timeseries ts)) x)
   }
+
   
 timeline :: forall a. (Ord a, PrintfArg a) => [Segment] -> Maybe HalfSegment -> Vector (UTCTime, a) -> [Vector (UTCTime, a)] -> [String]
 timeline is hs v vs =

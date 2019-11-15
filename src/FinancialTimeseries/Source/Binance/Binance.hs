@@ -31,6 +31,7 @@ import FinancialTimeseries.Type.Types (Price(..))
 
 import FinancialTimeseries.Util.Pretty (pretty)
 
+import Debug.Trace (trace)
 
 newtype Interval = Interval {
   unInterval :: Int
@@ -149,7 +150,56 @@ getSymbol req = do
   ds <- getData req
   return (fmap (TimeseriesRaw (pretty (symbol req)) . Price . Vec.map (fmap (unPrice . close))) ds)
 
+data PriceRequest = PriceRequest {
+  priceBaseUrl :: String
+  , priceSymbol :: Maybe Symbol
+  }
 
+defaultPriceRequest :: PriceRequest
+defaultPriceRequest = PriceRequest {
+  priceBaseUrl = binanceBaseUrl
+  , priceSymbol = Nothing
+  }
+
+  
+getTickerPriceHelper ::
+--  (Read a) =>
+  PriceRequest -> IO (Price (UTCTime, HM.HashMap Symbol Double))
+getTickerPriceHelper (PriceRequest u s) = do
+  let req = Simple.parseRequest_ (u ++ maybe "" (("?symbol="++) . pretty) s)
+  
+  response <- Simple.httpJSON req
+  now <- getCurrentTime
+
+  let price = Text.pack "price"
+      sym = Text.pack "symbol"
+
+      toSymbol (Ae.String str) = read (Text.unpack str)
+      toSymbol _ = error "getTickerPriceHelper: cannot read symbol"
+
+      f (Ae.Object obj) = (maybe (toSymbol (obj HM.! sym)) id s, (toNumber (obj HM.! price)))
+      f _ = error "getTickerPriceHelper: cannot read object"
+      
+      as =
+        case Simple.getResponseBody response of
+          obj@(Ae.Object _) -> HM.fromList [f obj]
+          Ae.Array arr -> HM.fromList (Vec.toList (Vec.map f arr))
+          _ -> HM.empty
+          
+  return (Price (now, HM.mapMaybe id as))
+  
+
+getTickerPrice :: PriceRequest -> IO (Price (UTCTime, HM.HashMap Symbol Double))
+getTickerPrice req =
+  getTickerPriceHelper (req { priceBaseUrl = priceBaseUrl req ++ "ticker/price" })
+
+getAvgPrice :: PriceRequest -> IO (Price (UTCTime, HM.HashMap Symbol Double))
+getAvgPrice req =
+  getTickerPriceHelper (req { priceBaseUrl = priceBaseUrl req ++ "avgPrice" })
+
+
+
+{-
 data AvgPriceRequest = AvgPriceRequest {
   avgBaseUrl :: String
   , avgSymbol :: Symbol
@@ -161,12 +211,14 @@ defaultAvgPriceRequest sym = AvgPriceRequest {
   , avgSymbol = sym
   }
 
-getAvgPrice :: AvgPriceRequest -> IO (Maybe (Price (UTCTime, Double)))
+getAvgPrice ::
+  (Read a) =>
+  AvgPriceRequest -> IO (Maybe (Price (UTCTime, a)))
 getAvgPrice (AvgPriceRequest u s) = do
   let req = Simple.parseRequest_ (u ++ "?symbol=" ++ pretty s)
 
   response <- Simple.httpJSON req
-  
+
   let as =
         case Simple.getResponseBody response of
           Ae.Object obj -> HM.lookup (Text.pack "price") obj >>= toNumber
@@ -174,3 +226,16 @@ getAvgPrice (AvgPriceRequest u s) = do
           
   now <- getCurrentTime
   return (fmap (\x -> Price (now, x)) as)
+
+
+data TickerPriceRequest = TickerPriceRequest {
+  tickerBaseUrl :: String
+  , tickerSymbol :: Maybe Symbol
+  }
+
+defaultTickerRequest :: TickerPriceRequest
+defaultTickerRequest = TickerPriceRequest {
+  tickerBaseUrl = binanceBaseUrl ++ "ticker/price"
+  , tickerSymbol = Nothing
+  }
+-}

@@ -9,8 +9,9 @@ import Control.Monad (foldM_)
 
 import Data.Time (UTCTime, getCurrentTime, diffUTCTime, addUTCTime)
 
-
 import qualified Data.Vector as Vec
+
+import qualified Data.HashMap.Strict as HM
 
 import qualified FinancialTimeseries.Algorithm.MovingAverage as MA
 
@@ -20,7 +21,7 @@ import qualified FinancialTimeseries.Source.Binance.Binance as Binance
 import FinancialTimeseries.Source.Binance.Symbol (Symbol)
 
 import FinancialTimeseries.Type.Fraction (Fraction(..))
-import FinancialTimeseries.Type.Segment (Segment(..), HalfSegment(..))
+import FinancialTimeseries.Type.Signal (Signal(..), lastSignal)
 import FinancialTimeseries.Type.Strategy (Strategy(..))
 import FinancialTimeseries.Type.Types (Price(..))
 import qualified FinancialTimeseries.Type.Timeseries as TS
@@ -52,23 +53,12 @@ refresh ::
   Fraction a -> Strategy a -> Account a -> TS.TimeseriesRaw a -> Account a
 refresh (Fraction f) (Strategy stgy) acnt@(Account bc qc) ts =
   let ms = stgy ts
-      Segment _ k = last (TS.investedSegments ms)
-      ls = TS.lastSegment ms
+      signal = lastSignal ms
       Price (_, prc) = TS.last ts
-      lastIndex = TS.length ts - 1
-  in case (k, ls) of
-       (_, Just (HalfSegment j))
-         | lastIndex == j ->
-             let newBC = bc - f*bc
-                 newQC = qc + f*bc*prc
-             in Account newBC newQC
-       (j, _)
-         | lastIndex == j ->
-             let newBC = bc + qc/prc
-                 newQC = 0
-             in Account newBC newQC
-       _ -> acnt
-                  
+  in case signal of
+       Buy -> Account (bc - f*bc) (qc + f*bc*prc)
+       Sell -> Account (bc + qc/prc) 0
+       None -> acnt
 
 
 start :: Config params Double -> IO ()
@@ -88,7 +78,9 @@ start cfg = do
 
       zs = map ((`addUTCTime` t) . (*dts)) [0, 1 ..]
 
-      req = Binance.defaultAvgPriceRequest (symbol cfg)
+      req = Binance.defaultPriceRequest {
+        Binance.priceSymbol = Just (symbol cfg)
+        }
 
       refreshAccount = refresh (fraction cfg) ((strategy cfg) (parameters cfg))
 
@@ -98,9 +90,14 @@ start cfg = do
         let delta = z `diffUTCTime` now
         threadDelay (round (realToFrac delta * 1000 * 1000))
 
-        avg <- Binance.getAvgPrice req
+        avg <- Binance.getTickerPrice req
+  
+        let price =
+              case fmap (sequence . fmap (HM.lookup (symbol cfg))) avg of
+                Price (Just p) -> Just (Price p)
+                _ -> Nothing
 
-        case fmap (TS.addLast acc) avg of
+        case fmap (TS.addLast acc) price of
           Just as -> do
             let newAcnt = refreshAccount acnt as
                 Price (t0, p0) = TS.last as            
