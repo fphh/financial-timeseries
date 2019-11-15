@@ -31,7 +31,7 @@ import FinancialTimeseries.Type.Types (Price(..))
 
 import FinancialTimeseries.Util.Pretty (pretty)
 
-import Debug.Trace (trace)
+
 
 newtype Interval = Interval {
   unInterval :: Int
@@ -103,7 +103,9 @@ toNumber (Ae.String str) = readMaybe (Text.unpack str)
 toNumber _ = Nothing
       
       
-getDataHelper :: RequestParams -> IO (Maybe (Vector (UTCTime, Row)))
+getDataHelper ::
+  (Read a) =>
+  RequestParams -> IO (Maybe (Vector (UTCTime, Row a)))
 getDataHelper request = do
   response <- Simple.httpJSON (url request)
   let f (Ae.Array as) = do
@@ -129,7 +131,9 @@ getDataHelper request = do
   return (sequence us)
 
   
-getData :: RequestParams -> IO (Maybe (Vector (UTCTime, Row)))
+getData ::
+  (Read a) =>
+  RequestParams -> IO (Maybe (Vector (UTCTime, Row a)))
 getData req =
   case limit req of
     Nothing -> getDataHelper req
@@ -145,7 +149,9 @@ getData req =
       return (liftA2 (Vec.++) vs v)
 
 
-getSymbol :: RequestParams -> IO (Maybe (TimeseriesRaw Double))
+getSymbol ::
+  (Read a) =>
+  RequestParams -> IO (Maybe (TimeseriesRaw a))
 getSymbol req = do
   ds <- getData req
   return (fmap (TimeseriesRaw (pretty (symbol req)) . Price . Vec.map (fmap (unPrice . close))) ds)
@@ -163,8 +169,8 @@ defaultPriceRequest = PriceRequest {
 
   
 getTickerPriceHelper ::
---  (Read a) =>
-  PriceRequest -> IO (Price (UTCTime, HM.HashMap Symbol Double))
+  (Read a) =>
+  PriceRequest -> IO (Price (UTCTime, HM.HashMap Symbol a))
 getTickerPriceHelper (PriceRequest u s) = do
   let req = Simple.parseRequest_ (u ++ maybe "" (("?symbol="++) . pretty) s)
   
@@ -189,11 +195,15 @@ getTickerPriceHelper (PriceRequest u s) = do
   return (Price (now, HM.mapMaybe id as))
   
 
-getTickerPrice :: PriceRequest -> IO (Price (UTCTime, HM.HashMap Symbol Double))
+getTickerPrice ::
+  (Read a) =>
+  PriceRequest -> IO (Price (UTCTime, HM.HashMap Symbol a))
 getTickerPrice req =
   getTickerPriceHelper (req { priceBaseUrl = priceBaseUrl req ++ "ticker/price" })
 
-getAvgPrice :: PriceRequest -> IO (Price (UTCTime, HM.HashMap Symbol Double))
+getAvgPrice ::
+  (Read a) =>
+  PriceRequest -> IO (Price (UTCTime, HM.HashMap Symbol a))
 getAvgPrice req =
   getTickerPriceHelper (req { priceBaseUrl = priceBaseUrl req ++ "avgPrice" })
 

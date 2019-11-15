@@ -41,7 +41,9 @@ data DataSet a = DataSet {
   , timeseriesDS :: a
   } deriving (Show)
 
-toDataSet :: Extract a -> Value -> Maybe (DataSet (Vector (UTCTime, Price a)))
+toDataSet ::
+  (Read a) =>
+  Extract a -> Value -> Maybe (DataSet (Vector (UTCTime, Price a)))
 toDataSet (Extract extract) (Ae.Object val) =
   let fromString (Ae.String txt) = Just txt
       fromString _ = Nothing
@@ -106,7 +108,9 @@ dataSet2timeseries ds = TimeseriesRaw {
   }
 
 
-getSymbol :: String -> String -> IO (Maybe (TimeseriesRaw Double))
+getSymbol ::
+  (Read a) =>
+  String -> String -> IO (Maybe (TimeseriesRaw a))
 getSymbol sym apikey = do
   response <- Simple.httpJSON (url sym apikey)
   let ds = toDataSet (Extract close) (Simple.getResponseBody response)

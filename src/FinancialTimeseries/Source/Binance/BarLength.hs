@@ -3,18 +3,19 @@
 
 module FinancialTimeseries.Source.Binance.BarLength where
 
-import Data.Time (NominalDiffTime)
+import Data.Time (UTCTime(..), NominalDiffTime, getCurrentTime, addUTCTime, secondsToDiffTime)
 
 import qualified Data.List as List
 
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
+
 data BarLength =
-  Min Int
-  | Hour Int
-  | Day Int
-  | Week Int
-  | Month Int
+  Min Integer
+  | Hour Integer
+  | Day Integer
+  | Week Integer
+  | Month Integer
   deriving (Show, Eq)
 
 instance Pretty BarLength where
@@ -30,12 +31,27 @@ instance Pretty BarLength where
     in maybe err id (List.lookup bl bs)
 
 
-
-toNominalDiffTime :: BarLength -> NominalDiffTime
-toNominalDiffTime bl = realToFrac $
+toSeconds :: BarLength -> Integer
+toSeconds bl =
   case bl of
     Min m -> 60*m
     Hour h -> 60*60*h
     Day d -> 24*60*60*d
     Week w -> 7*24*60*60*w
     Month m -> 30*7*24*60*60*m
+    
+toNominalDiffTime :: BarLength -> NominalDiffTime
+toNominalDiffTime = realToFrac . toSeconds
+
+
+nextTimeSlices :: BarLength -> IO [UTCTime]
+nextTimeSlices bl = do
+  t <- getCurrentTime
+  let dt = toSeconds bl
+      secs = utctDayTime t
+      rsecs = floor secs
+      m = realToFrac (dt - (rsecs `rem` dt) - 1)
+      x = 1 - (realToFrac secs - realToFrac rsecs)
+      start = (m+x) `addUTCTime` t
+  return (map (\i -> realToFrac (i * dt) `addUTCTime` start) [0, 1 .. ])
+  
