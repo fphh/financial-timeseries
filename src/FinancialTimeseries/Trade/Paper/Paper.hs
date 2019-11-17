@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 
 
 module FinancialTimeseries.Trade.Paper.Paper where
@@ -7,14 +8,17 @@ import qualified System.IO as Sys
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, takeMVar)
 
+import Control.Applicative (liftA2)
 
-import Control.Monad (void, foldM_)
+import Control.Monad (void, join, foldM_)
 
 import Data.Time (UTCTime, getCurrentTime, diffUTCTime, addUTCTime, formatTime, defaultTimeLocale, iso8601DateFormat)
 
 import qualified Data.Vector as Vec
 
 import qualified Data.HashMap.Strict as HM
+
+import qualified Data.List as List
 
 import qualified FinancialTimeseries.Algorithm.MovingAverage as MA
 
@@ -23,6 +27,8 @@ import FinancialTimeseries.Source.Binance.BarLength (BarLength, nextTimeSlices)
 import qualified FinancialTimeseries.Source.Binance.Binance as Binance
 import FinancialTimeseries.Source.Binance.Symbol (Symbol)
 
+import FinancialTimeseries.Trade.Account (Account(..))
+import FinancialTimeseries.Trade.LoggerData (LoggerData(..), logger)
 import FinancialTimeseries.Type.Fraction (Fraction(..))
 import FinancialTimeseries.Type.Signal (Signal(..), lastSignal)
 import FinancialTimeseries.Type.Strategy (Strategy(..))
@@ -31,17 +37,13 @@ import qualified FinancialTimeseries.Type.Timeseries as TS
 
 
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
+import FinancialTimeseries.Util.ToFileString (ToFileString, toFileString)
 
-
-data Account a = Account {
-  baseCurrency :: a
-  , quoteCurrency :: a
-  } deriving (Show)
 
 data Config params a = Config {
   account :: Account a
   , symbol :: Symbol
---  , barLength :: BarLength
+  , usdtSymbol :: Maybe Symbol
   , limit :: Int
   , fraction :: Fraction a
   , parameters :: params
@@ -65,16 +67,8 @@ refreshAccount (Fraction f) (Strategy stgy) acnt@(Account bc qc) ts =
        None -> acnt
 
 
-logger ::
-  (Show a) =>
-  Sys.Handle -> Price (UTCTime, a) -> Account a -> IO ()
-logger hd (Price (t, p)) (Account bc qc) =
-  let str = show t ++ "," ++ show p ++ "," ++ show bc ++ "," ++ show qc
-  in Sys.hPutStrLn hd str
-
-
 trader ::
-  (Show a, Read a, Fractional a) =>
+  (Show a, Read a, Fractional a, ToFileString params) =>
   MVar (Price (UTCTime, HM.HashMap Symbol a)) -> BarLength -> Config params a -> IO ()
 trader mvar bl cfg = do
 
@@ -85,7 +79,8 @@ trader mvar bl cfg = do
       fileName =
         outputDir
         ++ show sym
-        ++ "-" ++ pretty bl
+        ++ "-" ++ toFileString bl
+        ++ "-" ++ toFileString (parameters cfg)
         ++ "-" ++ formatTime defaultTimeLocale (iso8601DateFormat (Just "%X%Z")) now
         ++ ".csv"
 
@@ -107,23 +102,33 @@ trader mvar bl cfg = do
   let loop us@(acnt, zs) = do
         hm <- takeMVar mvar
 
-        let price =
-              case fmap (sequence . fmap (HM.lookup sym)) hm of
-                Price (Just p) -> Just (Price p)
-                _ -> Nothing
+        let distr (Price (Just p)) = Just (Price p)
+            distr _ = Nothing   
+
+            price = distr (fmap (sequence . fmap (HM.lookup sym)) hm)
+            bcurr = distr (fmap (join . flip fmap (usdtSymbol cfg) . flip HM.lookup . snd) hm)
 
         case fmap (TS.addLast zs) price of
           Just as -> do
             let newAcnt = refreshAcc acnt as
-            logger hd (TS.last as) newAcnt
+                bc@(Price (t, _)) = TS.last as
+                loggerData = LoggerData {
+                  ltime = t
+                  , lbaseCurrencyUSDT = bcurr                        
+                  , lcurrencyPair = fmap snd bc
+                  , laccount = newAcnt
+                  }
+            
+            logger hd loggerData
             loop (newAcnt, as)
           Nothing -> loop us
 
   loop (account cfg, empty)
 
 
+
 ticker ::
-  (Show a, Read a, Fractional a) =>
+  (Show a, Read a, Fractional a, ToFileString params) =>
   (BarLength, [Config params a]) -> IO ()
 ticker (bl, cfgs) = do
   ts <- nextTimeSlices bl
@@ -142,8 +147,15 @@ ticker (bl, cfgs) = do
 
         ps <- Binance.getTickerPrice Binance.defaultPriceRequest
 
-        x <- getCurrentTime
-        putStrLn ("Getting ticker at " ++ show x)
+        xnow <- getCurrentTime
+
+        let msg =
+              "Received ticker for [ "
+              ++ List.intercalate ", " (map (show . symbol) cfgs)
+              ++ " ] at "
+              ++ show xnow
+        
+        putStrLn msg
         
         mapM_ (flip putMVar ps) mvars
 
@@ -151,7 +163,7 @@ ticker (bl, cfgs) = do
 
 
 start ::
-  (Show a, Read a, Fractional a) =>
+  (Show a, Read a, Fractional a, ToFileString params) =>
   [(BarLength, [Config params a])] -> IO ()
 start xs = do
   let io = mapM_ (forkIO . ticker) xs

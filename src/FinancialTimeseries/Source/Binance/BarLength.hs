@@ -8,6 +8,7 @@ import Data.Time (UTCTime(..), NominalDiffTime, getCurrentTime, addUTCTime, seco
 import qualified Data.List as List
 
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
+import FinancialTimeseries.Util.ToFileString (ToFileString, toFileString)
 
 
 data BarLength =
@@ -29,6 +30,15 @@ instance Pretty BarLength where
           "binance does not support interval '" ++ show bl ++ "'\n"
           ++ "Supported intervals are:\n" ++ List.intercalate "\n" (map (('\t':) . show . fst) bs)
     in maybe err id (List.lookup bl bs)
+
+instance ToFileString BarLength where
+  toFileString bl =
+    case bl of
+      Min m -> "Min-" ++ show m
+      Hour h -> "Hour-" ++ show h
+      Day d -> "Day-" ++ show d
+      Week w -> "Week-" ++ show w
+      Month m -> "Month-" ++ show m
 
 
 toSeconds :: BarLength -> Integer

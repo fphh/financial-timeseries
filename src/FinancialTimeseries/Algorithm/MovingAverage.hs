@@ -12,10 +12,15 @@ import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), Timeseries(..))
 import FinancialTimeseries.Type.Types (Price(..))
 
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
+import FinancialTimeseries.Util.ToFileString (ToFileString, toFileString)
+
 
 newtype Window = Window {
   unWindow :: Int
   } deriving (Show)
+
+instance ToFileString Window where
+  toFileString (Window w) = "Window-" ++ show w
 
 instance Pretty Window where
   pretty = show

@@ -36,6 +36,8 @@ library
                    , FinancialTimeseries.Statistics.Statistics
                    , FinancialTimeseries.Statistics.Trade
                    , FinancialTimeseries.Test
+                   , FinancialTimeseries.Trade.Account
+                   , FinancialTimeseries.Trade.LoggerData
                    , FinancialTimeseries.Trade.Paper.Paper
                    , FinancialTimeseries.Type.Chart
                    , FinancialTimeseries.Type.Fraction
@@ -52,6 +54,7 @@ library
                    , FinancialTimeseries.Type.Types
                    , FinancialTimeseries.Util.DistributivePair
                    , FinancialTimeseries.Util.Pretty
+                   , FinancialTimeseries.Util.ToFileString
 
                   
 
