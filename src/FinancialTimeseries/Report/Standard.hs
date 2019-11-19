@@ -39,6 +39,7 @@ import FinancialTimeseries.Util.DistributivePair (distributePair)
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
 
+
 data ReportConfig params gen a = ReportConfig {
   now :: UTCTime
   , reportConfig :: Config
@@ -52,7 +53,13 @@ report ::
   ReportConfig params gen a -> TimeseriesRaw a -> H5.Html
 report cfg ts =
   let t = unStrategy (strategy cfg (parameters cfg)) ts
-      lg = long (partitionInvested (slice t))
+      lg' = long (partitionInvested (slice t))
+      
+      -- Long (TradeYield (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)]))
+      lg =
+        let k = fmap (map (Vec.map (fmap (1/))))
+        in fmap (fmap (bimap k k)) lg'
+      
       mteCrlo = AMC.mc (monteCarloConfig cfg) lg
 
       yields =
@@ -63,7 +70,6 @@ report cfg ts =
         let  j zs = (fmap stats2cdfChart zs, fmap stats2list zs)
              k = j . fmap ((:[]) . Labeled "Trade Yields" . tradeStatistics)
         in fmap (fmap (snd . fmap k)) yields
-      
 
       tsCharts =
         let convert (Price x) = Equity (snd x)
@@ -81,7 +87,6 @@ report cfg ts =
       rdds = fmap (fmap (fmap snd)) (AMC.relativeDrawdowns ms)
 
       broom = fmap (fmap (fmap (bimap (fmap Broom) (fmap Broom)))) (mteCrlo (Fraction 1.0) evaluate)
-
       
       html = runHtmlReader (reportConfig cfg) $ mconcat $
         currentTime (now cfg)

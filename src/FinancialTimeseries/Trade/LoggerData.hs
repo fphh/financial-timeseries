@@ -32,12 +32,14 @@ logger hd (LoggerData t bcusdt (Price cp) (Account bc qc)) =
       str = List.intercalate "," (show t : bcl ++ [show cp, show bc, show qc])
   in Sys.hPutStrLn hd str
 
+-- Fault tollerant parsing ???
 parse ::
   (Read a) =>
   FilePath -> IO [LoggerData a]
 parse file = do
   txt <- readFile file
   let ls = lines txt
+  
       f [t, bcusdt, cp, bc, qc] =
         let acnt = Account (read bc) (read qc)
             usdt =
@@ -45,7 +47,8 @@ parse file = do
                 x | x == notAvailable -> Nothing
                 x -> Just (Price (read x))
         in LoggerData (read t) usdt (Price (read cp)) acnt
-
+      f _ = error "LoggerData.parse: never here"
+  
       brk xs =
         case break (==',') xs of
           ("", _) -> []

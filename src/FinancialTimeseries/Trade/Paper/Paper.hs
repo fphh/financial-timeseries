@@ -65,6 +65,8 @@ refreshAccount (Fraction f) (Strategy stgy) acnt@(Account bc qc) ts =
        Buy -> Account (bc - f*bc) (qc + f*bc*prc)
        Sell -> Account (bc + qc/prc) 0
        None -> acnt
+       
+ --       in (ltime ld, (bc + qc/cp) / 30)
 
 
 trader ::

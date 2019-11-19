@@ -4,6 +4,8 @@ module FinancialTimeseries.Optimize.Optimize where
 
 import Data.Function (on)
 
+import Data.Bifunctor (bimap)
+
 import qualified Data.List as List
 
 import qualified Data.Vector as Vec
@@ -39,7 +41,13 @@ evalStrategy ::
   -> Long (TradeYield (Invested (Vec.Vector a)))
 evalStrategy ts stgy =
   let t = unStrategy stgy ts
-      lg = long (partitionInvested (slice t))
+      lg' = long (partitionInvested (slice t))
+
+      lg =
+        let k = fmap (map (Vec.map (fmap (1/))))
+        in fmap (fmap (bimap k k)) lg'
+      
+      
       k = fmap (Vec.fromList . map (yield . Vec.map snd))
   in fmap (fmap (snd . fmap k)) lg
 

@@ -47,11 +47,19 @@ movingAverage (Window m) ts@(TimeseriesRaw _ (Price vs)) =
         
       xs = Vec.ifoldr' f [] (Vec.zip us (Vec.tail us))
 
+  {-
       g [] = (Nothing, [])
       g [Up i] = (Just (HalfSegment i), [])
       g (Up i:Down j:zs) = fmap (Segment i j :) (g zs)
       g (Down _:zs) = g zs
       g (Up _:zs) = g zs
+      -}
+      
+      g [] = (Nothing, [])
+      g [Down i] = (Just (HalfSegment i), [])
+      g (Down i:Up j:zs) = fmap (Segment i j :) (g zs)
+      g (Up _:zs) = g zs
+      g (Down _:zs) = g zs
       
       h (t, s, _) = (t, s)
 
