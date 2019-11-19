@@ -34,7 +34,6 @@ library
                    , FinancialTimeseries.Source.Binance.Symbol
                    , FinancialTimeseries.Source.Row
                    , FinancialTimeseries.Statistics.Statistics
-                   , FinancialTimeseries.Statistics.Trade
                    , FinancialTimeseries.Test
                    , FinancialTimeseries.Trade.Account
                    , FinancialTimeseries.Trade.LoggerData
