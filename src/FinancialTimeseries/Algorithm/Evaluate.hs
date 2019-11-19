@@ -12,32 +12,48 @@ import Data.Vector (Vector)
 import FinancialTimeseries.Type.Fraction (Fraction(..))
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.Short (Short(..))
-import FinancialTimeseries.Type.Types(Invested(..), NotInvested(..), Equity(..), TradeYield(..), Price(..))
+import FinancialTimeseries.Type.Types(Invested(..), NotInvested(..), Equity(..), TradeYield(..), Price(..), ExchangeRate(..))
 import FinancialTimeseries.Util.DistributivePair (distributePair, undistributePair)
 
 
-profit ::
+profitHelper ::
   (Fractional a) =>
   (a -> a -> a)
-  -> Price (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
+  -> (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
   -> TradeYield (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
-profit p =
+profitHelper p =
   let f v =
         let (_, x0) = Vec.head v
         in Vec.map (fmap (p x0)) v
       g = fmap (map f)
-  in TradeYield . bimap g g . unPrice
+  in TradeYield . bimap g g -- . unPrice
+
+
+class Profit price where
+  profit ::
+    (Fractional a) =>
+    (a -> a -> a)
+    -> price (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
+    -> TradeYield (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
+
+instance Profit Price where
+  profit p = profitHelper p . unPrice
+
+instance Profit ExchangeRate where
+  profit p = profitHelper (\a b -> recip (p a b)) . unExchangeRate
+
+
 
 long ::
-  (Fractional a)
-  => Price (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
+  (Profit price, Fractional a)
+  => price (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
   -> Long (TradeYield (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)]))
 long = Long . profit (\x0 xn -> xn/x0)
 
 
 short ::
-  (Fractional a)
-  => Price (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
+  (Profit price, Fractional a)
+  => price (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)])
   -> Short (TradeYield (NotInvested [Vector (UTCTime, a)], Invested [Vector (UTCTime, a)]))
 short = Short . profit (\x0 xn -> (x0-xn)/x0)
 

@@ -3,8 +3,7 @@
 module FinancialTimeseries.Optimize.Optimize where
 
 import Data.Function (on)
-
-import Data.Bifunctor (bimap)
+import Data.Distributive (Distributive)
 
 import qualified Data.List as List
 
@@ -17,7 +16,7 @@ import qualified Statistics.Test.Types as TTypes
 import qualified Statistics.Types as Types
 
 
-import FinancialTimeseries.Algorithm.Evaluate (long)
+import FinancialTimeseries.Algorithm.Evaluate (Profit, long)
 
 import FinancialTimeseries.Statistics.Statistics (tradeStatistics, trMeanYield, moments, sampleSize, yield)
 
@@ -28,26 +27,20 @@ import FinancialTimeseries.Type.Types (TimeseriesYield(..), TradeYield(..), Inve
 
 
 
-data OptimizeConfig optParams a = OptimizeConfig {
-  strategy :: optParams -> Strategy a
+data OptimizeConfig optParams price a = OptimizeConfig {
+  strategy :: optParams -> Strategy price a
   , params :: [optParams]
   }
 
 
 evalStrategy ::
-  (Fractional a) =>
-  TimeseriesRaw a
-  -> Strategy a
+  (Distributive price, Profit price, Fractional a) =>
+  TimeseriesRaw price a
+  -> Strategy price a
   -> Long (TradeYield (Invested (Vec.Vector a)))
 evalStrategy ts stgy =
   let t = unStrategy stgy ts
-      lg' = long (partitionInvested (slice t))
-
-      lg =
-        let k = fmap (map (Vec.map (fmap (1/))))
-        in fmap (fmap (bimap k k)) lg'
-      
-      
+      lg = long (partitionInvested (slice t))
       k = fmap (Vec.fromList . map (yield . Vec.map snd))
   in fmap (fmap (snd . fmap k)) lg
 
@@ -71,8 +64,8 @@ equalDistribution n pval (Long (TradeYield (Invested vs))) =
 
 
 optimize ::
-  (Fractional a, Real a, Floating a) =>
-  OptimizeConfig optParams a -> TimeseriesRaw a -> [(optParams, TimeseriesYield a)]
+  (Distributive price, Profit price, Fractional a, Real a, Floating a) =>
+  OptimizeConfig optParams price a -> TimeseriesRaw price a -> [(optParams, TimeseriesYield a)]
 optimize (OptimizeConfig strgy ps) ts =
   let ss = map (\p -> (p, evalStrategy ts (strgy p))) ps
 

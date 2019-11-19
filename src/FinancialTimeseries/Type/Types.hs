@@ -14,7 +14,7 @@ import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
 newtype Invested a = Invested {
   unInvested :: a
-  } deriving (Show, Functor)
+  } deriving (Show, Functor, Eq)
 
 instance Pretty a => Pretty (Invested a) where
   pretty (Invested x) = "Invested\n" ++ pretty x
@@ -25,7 +25,7 @@ instance Distributive Invested where
 
 newtype NotInvested a = NotInvested {
   unNotInvested :: a
-  } deriving (Show, Functor)
+  } deriving (Show, Functor, Eq)
 
 instance Pretty a => Pretty (NotInvested a) where  
   pretty (NotInvested x) = "Not Invested\n" ++ pretty x
@@ -79,9 +79,13 @@ instance DistributivePair TradeYield where
   undistributePair = undistPair TradeYield unTradeYield
 
 
+class StripPrice price where
+  stripPrice :: price a -> a
+  price :: a -> price a
+
 newtype Price a = Price {
   unPrice :: a
-  } deriving (Functor, Show, Read)
+  } deriving (Functor, Show, Read, Eq)
 
 instance Pretty a => Pretty (Price a) where
   pretty (Price x) = "Price:\n" ++ pretty x
@@ -89,10 +93,28 @@ instance Pretty a => Pretty (Price a) where
 instance Distributive Price where
   distribute = Price . fmap unPrice
 
+instance StripPrice Price where
+  stripPrice = unPrice
+  price = Price
+
+
+newtype ExchangeRate a = ExchangeRate {
+  unExchangeRate :: a
+  } deriving (Functor, Show, Read)
+
+instance Pretty a => Pretty (ExchangeRate a) where
+  pretty (ExchangeRate x) = "ExchangeRate:\n" ++ pretty x
+
+instance Distributive ExchangeRate where
+  distribute = ExchangeRate . fmap unExchangeRate
+
+instance StripPrice ExchangeRate where
+  stripPrice = unExchangeRate
+  price = ExchangeRate
 
 newtype AbsoluteDrawdown a = AbsoluteDrawdown {
   unAbsoluteDrawdown :: a
-  } deriving (Functor, Show)
+  } deriving (Functor, Show, Eq)
 
 instance Pretty a => Pretty (AbsoluteDrawdown a) where
   pretty (AbsoluteDrawdown x) = "Absolute drawdown:\n" ++ pretty x
@@ -121,12 +143,17 @@ instance DistributivePair RelativeDrawdown where
 
 
 partitionInvested ::
-  Price [Either (NotInvested a) (Invested b)] -> Price (NotInvested [a], Invested [b])
+  (Functor price) =>
+  price [Either (NotInvested a) (Invested b)] -> price (NotInvested [a], Invested [b])
 partitionInvested =
   fmap (bimap (NotInvested . map unNotInvested) (Invested . map unInvested) . partitionEithers)
 
-invested :: Price [Either (NotInvested a) (Invested a)] -> Price (Invested [a])
+invested ::
+  (Functor price) =>
+  price [Either (NotInvested a) (Invested a)] -> price (Invested [a])
 invested = fmap snd . partitionInvested
 
-notInvested :: Price [Either (NotInvested a) (Invested a)] -> Price (NotInvested [a])
+notInvested ::
+  (Functor price) =>
+  price [Either (NotInvested a) (Invested a)] -> price (NotInvested [a])
 notInvested = fmap fst . partitionInvested

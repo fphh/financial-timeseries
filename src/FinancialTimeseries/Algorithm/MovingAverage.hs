@@ -9,7 +9,7 @@ import qualified Statistics.Sample as Sample
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Segment (Segment(..), HalfSegment(..))
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), Timeseries(..))
-import FinancialTimeseries.Type.Types (Price(..))
+import FinancialTimeseries.Type.Types (StripPrice, stripPrice)
 
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 import FinancialTimeseries.Util.ToFileString (ToFileString, toFileString)
@@ -30,9 +30,12 @@ data UpDown =
   | Down Int
   deriving (Show)
 
-movingAverage :: (Real a, Fractional a) => Window -> TimeseriesRaw a -> Timeseries a
-movingAverage (Window m) ts@(TimeseriesRaw _ (Price vs)) =
-  let idx = Vec.fromList [0 .. Vec.length vs - m]
+movingAverage ::
+  (StripPrice price, Real a, Fractional a) =>
+  Window -> TimeseriesRaw price a -> Timeseries price a
+movingAverage (Window m) ts@(TimeseriesRaw _ pvs) =
+  let vs = stripPrice pvs
+      idx = Vec.fromList [0 .. Vec.length vs - m]
   
       slc i =
         let ws = Vec.slice i m vs
@@ -69,6 +72,6 @@ movingAverage (Window m) ts@(TimeseriesRaw _ (Price vs)) =
         timeseriesRaw = ts
         , investedSegments = isegs
         , lastSegment = hs
-        , additionalSeries = [Labeled "Moving Average" (Price (Vec.map h us))]
+        , additionalSeries = [Labeled "Moving Average" (Vec.map h us)]
         }
   in res

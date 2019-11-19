@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 
 module FinancialTimeseries.Type.Signal where
 
@@ -13,7 +14,9 @@ data Signal =
   deriving (Show)
 
 
-lastSignal :: TS.Timeseries a -> Signal
+lastSignal ::
+  (TS.Length (TS.TimeseriesRaw price a)) =>
+  TS.Timeseries price a -> Signal
 lastSignal ms =
   let k =
         case TS.investedSegments ms of

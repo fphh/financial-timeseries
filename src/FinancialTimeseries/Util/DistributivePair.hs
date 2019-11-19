@@ -16,3 +16,11 @@ undistPair unUn un = unUn . bimap un un
 class DistributivePair f where
   distributePair :: f (a, b) -> (f a, f b)
   undistributePair :: (f a, f b) -> f (a, b)
+
+
+undistributeEither ::
+  (Functor f) =>
+  Either (f a) (f b) -> f (Either a b)
+undistributeEither (Right x) = fmap Right x
+undistributeEither (Left x) = fmap Left x
+

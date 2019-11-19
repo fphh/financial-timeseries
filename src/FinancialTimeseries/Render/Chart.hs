@@ -39,17 +39,19 @@ import Graphics.Svg.Core (renderBS)
 import FinancialTimeseries.Render.HtmlReader (HtmlReader, Config(..))
 import FinancialTimeseries.Type.Chart (ParaCurve(..), Chart(..), LChart)
 import FinancialTimeseries.Type.Labeled (Labeled(..))
-import FinancialTimeseries.Type.Segment (Segment(..))
+import FinancialTimeseries.Type.Segment (Segment(..), HalfSegment(..))
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), Timeseries(..))
-import FinancialTimeseries.Type.Types (Equity(..), Price(..))
+import FinancialTimeseries.Type.Types (StripPrice, stripPrice, Equity(..))
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
+
 chart ::
-  (E.PlotValue a, Fractional a) =>
-  Equity (Vector (UTCTime, a)) -> [Timeseries a] -> LChart String UTCTime a
+  (StripPrice price, E.PlotValue a, Fractional a) =>
+  Equity (Vector (UTCTime, a)) -> [Timeseries price a] -> LChart String UTCTime a
 chart res vs =
-  let f (Timeseries (TimeseriesRaw nam (Price ts)) segs halfSeg as) =
-        let (_, mi) = Vec.minimumBy (compare `on` snd) ts
+  let f (Timeseries (TimeseriesRaw nam tsVec) segs halfSeg as) =
+        let ts = stripPrice tsVec
+            (_, mi) = Vec.minimumBy (compare `on` snd) ts
             (_, ma) = Vec.maximumBy (compare `on` snd) ts
             m = mi + (ma - mi) * 0.8
             spikeLow = m - (ma - mi) * 0.1
@@ -59,8 +61,14 @@ chart res vs =
                   (tn, _) = ts Vec.! b
                   ys = [(t0,spikeLow), (t0, spikeHigh), (t0, m), (tn, m), (tn, spikeLow), (tn, spikeHigh)]
               in Vec.fromList ys
-        in [Labeled nam [ts], Labeled (nam ++ " (inv. / not inv.)") (map g segs)]
-           ++ map (fmap ((:[]) . unPrice)) as
+            h (HalfSegment a) =
+              let (t0, _) = ts Vec.! a
+                  (tn, _) = Vec.last ts
+                  ys = [(t0,spikeLow), (t0, spikeHigh), (t0, m), (tn, m)]
+              in Vec.fromList ys
+            hs = maybe [] ((:[]) . h) halfSeg
+        in [Labeled nam [ts], Labeled (nam ++ " (inv. / not inv.)") (map g segs ++ hs)]
+           ++ map (fmap (:[])) as
   in Chart "Timeseries" (concatMap f vs ++ [Labeled "Equity" [unEquity res]])
 
 

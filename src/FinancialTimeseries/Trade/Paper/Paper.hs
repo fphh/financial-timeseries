@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-
+{-# LANGUAGE FlexibleContexts #-}
 
 module FinancialTimeseries.Trade.Paper.Paper where
 
@@ -32,7 +32,7 @@ import FinancialTimeseries.Trade.LoggerData (LoggerData(..), logger)
 import FinancialTimeseries.Type.Fraction (Fraction(..))
 import FinancialTimeseries.Type.Signal (Signal(..), lastSignal)
 import FinancialTimeseries.Type.Strategy (Strategy(..))
-import FinancialTimeseries.Type.Types (Price(..))
+import FinancialTimeseries.Type.Types (StripPrice, stripPrice, ExchangeRate(..))
 import qualified FinancialTimeseries.Type.Timeseries as TS
 
 
@@ -47,7 +47,7 @@ data Config params a = Config {
   , limit :: Int
   , fraction :: Fraction a
   , parameters :: params
-  , strategy :: params -> Strategy a
+  , strategy :: params -> Strategy ExchangeRate a
   }
 
 
@@ -55,23 +55,21 @@ outputDir :: String
 outputDir = "output/"
 
 refreshAccount ::
-  (Num a, Fractional a) =>
-  Fraction a -> Strategy a -> Account a -> TS.TimeseriesRaw a -> Account a
+  (Num a, Fractional a, TS.Length (TS.TimeseriesRaw price a), Functor price, StripPrice price) =>
+  Fraction a -> Strategy price a -> Account a -> TS.TimeseriesRaw price a -> Account a
 refreshAccount (Fraction f) (Strategy stgy) acnt@(Account bc qc) ts =
   let ms = stgy ts
       signal = lastSignal ms
-      Price (_, prc) = TS.last ts
+      (_, prc) = stripPrice (TS.last ts)
   in case signal of
        Buy -> Account (bc - f*bc) (qc + f*bc*prc)
        Sell -> Account (bc + qc/prc) 0
        None -> acnt
-       
- --       in (ltime ld, (bc + qc/cp) / 30)
 
 
 trader ::
   (Show a, Read a, Fractional a, ToFileString params) =>
-  MVar (Price (UTCTime, HM.HashMap Symbol a)) -> BarLength -> Config params a -> IO ()
+  MVar (ExchangeRate (UTCTime, HM.HashMap Symbol a)) -> BarLength -> Config params a -> IO ()
 trader mvar bl cfg = do
 
   now <- getCurrentTime
@@ -104,16 +102,16 @@ trader mvar bl cfg = do
   let loop us@(acnt, zs) = do
         hm <- takeMVar mvar
 
-        let distr (Price (Just p)) = Just (Price p)
-            distr _ = Nothing   
-
-            price = distr (fmap (sequence . fmap (HM.lookup sym)) hm)
+        let distr (ExchangeRate (Just x)) = Just (ExchangeRate x)
+            distr _ = Nothing
+          
+            prc = distr (fmap (sequence . fmap (HM.lookup sym)) hm)
             bcurr = distr (fmap (join . flip fmap (usdtSymbol cfg) . flip HM.lookup . snd) hm)
 
-        case fmap (TS.addLast zs) price of
+        case fmap (TS.addLast zs) prc of
           Just as -> do
             let newAcnt = refreshAcc acnt as
-                bc@(Price (t, _)) = TS.last as
+                bc@(ExchangeRate (t, _)) = TS.last as
                 loggerData = LoggerData {
                   ltime = t
                   , lbaseCurrencyUSDT = bcurr                        
@@ -137,7 +135,7 @@ ticker (bl, cfgs) = do
 
   let g c = do
         mvar <- newEmptyMVar
-        forkIO (trader mvar bl c)
+        void (forkIO (trader mvar bl c))
         return mvar
 
   mvars <- mapM g cfgs
@@ -147,7 +145,7 @@ ticker (bl, cfgs) = do
         let delta = t `diffUTCTime` now
         threadDelay (round (realToFrac delta * 1000 * 1000))
 
-        ps <- Binance.getTickerPrice Binance.defaultPriceRequest
+        ps <- Binance.getTickerExchangeRate Binance.defaultExchangeRateRequest
 
         xnow <- getCurrentTime
 
@@ -171,126 +169,3 @@ start xs = do
   let io = mapM_ (forkIO . ticker) xs
   io
   threadDelay (60*1000*1000*1000)
-  {-
-  mvar <- newEmptyMVar
-  forkFinally io (\_ -> putMVar mvar ())
-  takeMVar mvar
-  -}
-
-
-
-
-
-  
- {-
-trader :: MVar (Price (UTCTime, HM.HashMap Symbol a)) -> Config params a -> IO ()
-trader m cfg = do
-  let tsReq = (Binance.defaultRequestParams "" (symbol cfg) (barLength cfg)) {
-        Binance.limit = Just (limit cfg)
-        }
-        
-  Just ts <- Binance.getSymbol tsReq
-  
-  let req = Binance.defaultPriceRequest {
-        Binance.priceSymbol = Just (symbol cfg)
-        }
-
-
-      loop as = do
-        m <- takeMVar m
-        
-        
-  in loop ts
--}
-
-
-{-
-ticker :: Config params Double -> IO ()
-ticker cfg = do
-
-  mvar <- newEmptyMVar
-
-  t <- getCurrentTime
-    
-  let dts = BarLength.toNominalDiffTime (barLength cfg)
-
-      zs = map ((`addUTCTime` t) . (*dts)) [0, 1 ..]
-
-      req = Binance.defaultPriceRequest {
-        Binance.priceSymbol = Just (symbol cfg)
-        }
-
-      f acc z = do
-        
-        now <- getCurrentTime
-        let delta = z `diffUTCTime` now
-        threadDelay (round (realToFrac delta * 1000 * 1000))
-
-        avg <- Binance.getTickerPrice req
-        
-        let price =
-              case fmap (sequence . fmap (HM.lookup (symbol cfg))) avg of
-                Price (Just p) -> Just (Price p)
-                _ -> Nothing
-                
-        case fmap (TS.addLast acc) price of
-          Just as -> do
-            putMVar mvar as
-            return as
-          _ -> return acc
-          
-  foldM_ f undefined zs
-
--}
-
-
-{-
-
-start :: Config params Double -> IO ()
-start cfg = do
-
-  let req = (Binance.defaultRequestParams "" (symbol cfg) (barLength cfg)) {
-        Binance.limit = Just (limit cfg)
-        }
-
-  Just ts <- Binance.getSymbol req
-
-  Sys.hSetBuffering Sys.stdout Sys.LineBuffering
-  
-  let Price (t, _) = TS.last ts
-      
-      dts = BarLength.toNominalDiffTime (barLength cfg)
-
-      zs = map ((`addUTCTime` t) . (*dts)) [0, 1 ..]
-
-      req = Binance.defaultPriceRequest {
-        Binance.priceSymbol = Just (symbol cfg)
-        }
-
-      refreshAcc = refreshAccount (fraction cfg) ((strategy cfg) (parameters cfg))
-
-      f (acnt, acc) z = do
-        
-        now <- getCurrentTime
-        let delta = z `diffUTCTime` now
-        threadDelay (round (realToFrac delta * 1000 * 1000))
-
-        avg <- Binance.getTickerPrice req
-  
-        let price =
-              case fmap (sequence . fmap (HM.lookup (symbol cfg))) avg of
-                Price (Just p) -> Just (Price p)
-                _ -> Nothing
-
-        case fmap (TS.addLast acc) price of
-          Just as -> do
-            let newAcnt = refreshAcc acnt as
-                Price (t0, p0) = TS.last as            
-            putStrLn
-              (show t0 ++ "," ++ show p0 ++ "," ++ show (baseCurrency newAcnt) ++ "," ++ show (quoteCurrency newAcnt))
-            return (newAcnt, as)
-          Nothing -> return (acnt, acc)
-  
-  foldM_ f (account cfg, ts) zs
-
--}

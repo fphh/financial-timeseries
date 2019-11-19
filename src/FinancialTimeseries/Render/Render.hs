@@ -7,8 +7,6 @@ module FinancialTimeseries.Render.Render where
 
 import Control.Applicative (liftA2)
 
-import Data.Bifunctor (bimap)
-
 import Data.Time (UTCTime)
 
 import Data.Colour.SRGB (sRGB24)
@@ -26,7 +24,7 @@ import Text.Blaze.Html (Html)
 import qualified Graphics.Rendering.Chart.Easy as E
 
 
-import FinancialTimeseries.Render.Chart (renderChart, PlotLine)
+import FinancialTimeseries.Render.Chart (renderChart)
 import FinancialTimeseries.Render.Css ((!))
 import FinancialTimeseries.Render.HtmlReader (HtmlReader)
 import FinancialTimeseries.Render.Table (table)

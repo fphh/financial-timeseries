@@ -27,7 +27,7 @@ import FinancialTimeseries.Source.Row (Row(..), Volume(..))
 import FinancialTimeseries.Source.Binance.Symbol (Symbol)
 
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..))
-import FinancialTimeseries.Type.Types (Price(..))
+import FinancialTimeseries.Type.Types (ExchangeRate(..))
 
 import FinancialTimeseries.Util.Pretty (pretty)
 
@@ -105,14 +105,14 @@ toNumber _ = Nothing
       
 getDataHelper ::
   (Read a) =>
-  RequestParams -> IO (Maybe (Vector (UTCTime, Row a)))
+  RequestParams -> IO (Maybe (Vector (UTCTime, Row ExchangeRate a)))
 getDataHelper request = do
   response <- Simple.httpJSON (url request)
   let f (Ae.Array as) = do
-        o <- fmap Price (toNumber (as Vec.! 1))
-        h <- fmap Price (toNumber (as Vec.! 2))
-        l <- fmap Price (toNumber (as Vec.! 3))
-        c <- fmap Price (toNumber (as Vec.! 4))
+        o <- fmap ExchangeRate (toNumber (as Vec.! 1))
+        h <- fmap ExchangeRate (toNumber (as Vec.! 2))
+        l <- fmap ExchangeRate (toNumber (as Vec.! 3))
+        c <- fmap ExchangeRate (toNumber (as Vec.! 4))
         v <- fmap Volume (toNumber (as Vec.! 5))
         t <- case as Vec.! 6 of
                Ae.Number sec -> Just (posixSecondsToUTCTime (fromIntegral (round sec :: Integer) / 1000))
@@ -133,7 +133,7 @@ getDataHelper request = do
   
 getData ::
   (Read a) =>
-  RequestParams -> IO (Maybe (Vector (UTCTime, Row a)))
+  RequestParams -> IO (Maybe (Vector (UTCTime, Row ExchangeRate a)))
 getData req =
   case limit req of
     Nothing -> getDataHelper req
@@ -151,27 +151,27 @@ getData req =
 
 getSymbol ::
   (Read a) =>
-  RequestParams -> IO (Maybe (TimeseriesRaw a))
+  RequestParams -> IO (Maybe (TimeseriesRaw ExchangeRate a))
 getSymbol req = do
   ds <- getData req
-  return (fmap (TimeseriesRaw (pretty (symbol req)) . Price . Vec.map (fmap (unPrice . close))) ds)
+  return (fmap (TimeseriesRaw (pretty (symbol req)) . ExchangeRate . Vec.map (fmap (unExchangeRate . close))) ds)
 
-data PriceRequest = PriceRequest {
+data ExchangeRateRequest = ExchangeRateRequest {
   priceBaseUrl :: String
   , priceSymbol :: Maybe Symbol
   }
 
-defaultPriceRequest :: PriceRequest
-defaultPriceRequest = PriceRequest {
+defaultExchangeRateRequest :: ExchangeRateRequest
+defaultExchangeRateRequest = ExchangeRateRequest {
   priceBaseUrl = binanceBaseUrl
   , priceSymbol = Nothing
   }
 
   
-getTickerPriceHelper ::
+getTickerExchangeRateHelper ::
   (Read a) =>
-  PriceRequest -> IO (Price (UTCTime, HM.HashMap Symbol a))
-getTickerPriceHelper (PriceRequest u s) = do
+  ExchangeRateRequest -> IO (ExchangeRate (UTCTime, HM.HashMap Symbol a))
+getTickerExchangeRateHelper (ExchangeRateRequest u s) = do
   let req = Simple.parseRequest_ (u ++ maybe "" (("?symbol="++) . pretty) s)
   
   response <- Simple.httpJSON req
@@ -181,10 +181,10 @@ getTickerPriceHelper (PriceRequest u s) = do
       sym = Text.pack "symbol"
 
       toSymbol (Ae.String str) = read (Text.unpack str)
-      toSymbol _ = error "getTickerPriceHelper: cannot read symbol"
+      toSymbol _ = error "getTickerExchangeRateHelper: cannot read symbol"
 
       f (Ae.Object obj) = (maybe (toSymbol (obj HM.! sym)) id s, (toNumber (obj HM.! price)))
-      f _ = error "getTickerPriceHelper: cannot read object"
+      f _ = error "getTickerExchangeRateHelper: cannot read object"
       
       as =
         case Simple.getResponseBody response of
@@ -192,60 +192,18 @@ getTickerPriceHelper (PriceRequest u s) = do
           Ae.Array arr -> HM.fromList (Vec.toList (Vec.map f arr))
           _ -> HM.empty
           
-  return (Price (now, HM.mapMaybe id as))
+  return (ExchangeRate (now, HM.mapMaybe id as))
   
 
-getTickerPrice ::
+getTickerExchangeRate ::
   (Read a) =>
-  PriceRequest -> IO (Price (UTCTime, HM.HashMap Symbol a))
-getTickerPrice req =
-  getTickerPriceHelper (req { priceBaseUrl = priceBaseUrl req ++ "ticker/price" })
+  ExchangeRateRequest -> IO (ExchangeRate (UTCTime, HM.HashMap Symbol a))
+getTickerExchangeRate req =
+  getTickerExchangeRateHelper (req { priceBaseUrl = priceBaseUrl req ++ "ticker/price" })
 
-getAvgPrice ::
+getAvgExchangeRate ::
   (Read a) =>
-  PriceRequest -> IO (Price (UTCTime, HM.HashMap Symbol a))
-getAvgPrice req =
-  getTickerPriceHelper (req { priceBaseUrl = priceBaseUrl req ++ "avgPrice" })
+  ExchangeRateRequest -> IO (ExchangeRate (UTCTime, HM.HashMap Symbol a))
+getAvgExchangeRate req =
+  getTickerExchangeRateHelper (req { priceBaseUrl = priceBaseUrl req ++ "avgExchangeRate" })
 
-
-
-{-
-data AvgPriceRequest = AvgPriceRequest {
-  avgBaseUrl :: String
-  , avgSymbol :: Symbol
-  }
-
-defaultAvgPriceRequest :: Symbol -> AvgPriceRequest
-defaultAvgPriceRequest sym = AvgPriceRequest {
-  avgBaseUrl = binanceBaseUrl ++ "avgPrice"
-  , avgSymbol = sym
-  }
-
-getAvgPrice ::
-  (Read a) =>
-  AvgPriceRequest -> IO (Maybe (Price (UTCTime, a)))
-getAvgPrice (AvgPriceRequest u s) = do
-  let req = Simple.parseRequest_ (u ++ "?symbol=" ++ pretty s)
-
-  response <- Simple.httpJSON req
-
-  let as =
-        case Simple.getResponseBody response of
-          Ae.Object obj -> HM.lookup (Text.pack "price") obj >>= toNumber
-          _ -> Nothing
-          
-  now <- getCurrentTime
-  return (fmap (\x -> Price (now, x)) as)
-
-
-data TickerPriceRequest = TickerPriceRequest {
-  tickerBaseUrl :: String
-  , tickerSymbol :: Maybe Symbol
-  }
-
-defaultTickerRequest :: TickerPriceRequest
-defaultTickerRequest = TickerPriceRequest {
-  tickerBaseUrl = binanceBaseUrl ++ "ticker/price"
-  , tickerSymbol = Nothing
-  }
--}
