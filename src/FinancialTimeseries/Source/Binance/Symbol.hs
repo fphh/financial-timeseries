@@ -12,6 +12,7 @@ import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 instance Pretty Symbol where
   pretty = show
 
+
 data Symbol =
   ETHBTC
   | LTCBTC
@@ -672,4 +673,5 @@ data Symbol =
   | EOSBUSD
   | IOTXUSDT
   | RLCUSDT
-  deriving (Show, Read, Eq, Ord, Enum, Hashable, Generic)
+  | MCOUSDT
+  deriving (Show, Read, Eq, Enum, Ord, Hashable, Generic)

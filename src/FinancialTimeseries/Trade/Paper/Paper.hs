@@ -168,4 +168,5 @@ start ::
 start xs = do
   let io = mapM_ (forkIO . ticker) xs
   io
-  threadDelay (60*1000*1000*1000)
+  -- threadDelay (60*1000*1000*1000)
+  threadDelay (1000*1000*60*60*16) -- 16 hours

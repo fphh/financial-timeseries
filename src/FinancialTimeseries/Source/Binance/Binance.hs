@@ -1,24 +1,37 @@
 {-# LANGUAGE RecordWildCards #-}
-
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 
 module FinancialTimeseries.Source.Binance.Binance where
 
+import GHC.Generics (Generic)
+
 import Control.Applicative (liftA2)
+import Control.Monad (mzero)
+
+import Data.Char (ord)
 
 import Data.Time (UTCTime, getCurrentTime)
-import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds, posixSecondsToUTCTime)
+import Data.Time.Clock.POSIX (getPOSIXTime, utcTimeToPOSIXSeconds, posixSecondsToUTCTime)
 
 import qualified Data.Vector as Vec
 import Data.Vector (Vector)
 
+import qualified Data.Aeson as Ae
+import qualified Data.ByteString.Char8 as BS8
+import qualified Data.ByteString as BS
+import qualified Data.HashMap.Strict as HM
+
 import qualified Data.Text as Text
+
+import qualified Data.CaseInsensitive as CI
 
 import Text.Read (readMaybe)
 
-import qualified Data.Aeson as Ae
+import Text.Printf (printf)
 
-import qualified Data.HashMap.Strict as HM
+import Crypto.Hash.SHA256 (hmac)
 
 import qualified Network.HTTP.Simple as Simple
 
@@ -31,7 +44,7 @@ import FinancialTimeseries.Type.Types (ExchangeRate(..))
 
 import FinancialTimeseries.Util.Pretty (pretty)
 
-
+import Debug.Trace (trace)
 
 newtype Interval = Interval {
   unInterval :: Int
@@ -77,26 +90,6 @@ url RequestParams{..} =
         ++ maybe "" (\d -> "&endTime=" ++ show (utcToMillis d)) to
   in  Simple.parseRequest_ u
 
-
-
-{-
-[
-  [
-    1499040000000,      // Open time 0
-    "0.01634790",       // Open 1
-    "0.80000000",       // High 2
-    "0.01575800",       // Low 3
-    "0.01577100",       // Close 4
-    "148976.11427815",  // Volume 5
-    1499644799999,      // Close time
-    "2434.19055334",    // Quote asset volume
-    308,                // Number of trades
-    "1756.87402397",    // Taker buy base asset volume
-    "28.46694368",      // Taker buy quote asset volume
-    "17928899.62484339" // Ignore.
-  ]
-]
--}
 
 toNumber :: (Read a) => Ae.Value -> Maybe a
 toNumber (Ae.String str) = readMaybe (Text.unpack str)
@@ -206,4 +199,83 @@ getAvgExchangeRate ::
   ExchangeRateRequest -> IO (ExchangeRate (UTCTime, HM.HashMap Symbol a))
 getAvgExchangeRate req =
   getTickerExchangeRateHelper (req { priceBaseUrl = priceBaseUrl req ++ "avgExchangeRate" })
+
+newtype ApiKey = ApiKey {
+  unApiKey :: String
+  }
+
+newtype SecretKey = SecretKey {
+  unSecretKey :: String
+  }
+
+data BalanceRequest = BalanceRequest {
+  accountUrl :: String
+  , accountTimestamp :: Int
+  , accountApiKey :: ApiKey
+  , accountSecretKey :: SecretKey
+  }
+
+
+data Asset = Asset {
+  asset :: String
+  , free :: Double
+  , locked :: Double
+  } deriving (Show)
+
+instance Ae.FromJSON Asset where
+  parseJSON (Ae.Object v) = do
+    let assetKey = Text.pack "asset"
+        freeKey = Text.pack "free"
+        lockedKey = Text.pack "locked"
+
+        free = fmap read (v Ae..: freeKey)
+        locked = fmap read (v Ae..: lockedKey)
+        asset = v Ae..: assetKey
+    
+    Asset <$> asset <*> free <*> locked
+    
+  parseJSON _          = mzero
+
+
+data Balance = Balance {
+  takerCommission :: Double
+  , buyerCommission :: Double
+  , sellerCommission :: Double
+  , makerCommission :: Double
+  , accountType :: String
+  , canDeposit :: Bool
+  , canWithdraw :: Bool
+  , canTrade :: Bool
+  , balances :: [Asset]
+  } deriving (Show, Generic, Ae.FromJSON)
+
+
+defaultBalanceRequest :: ApiKey -> SecretKey -> IO BalanceRequest
+defaultBalanceRequest apiKey secretKey = do
+  now <- getPOSIXTime
+  return $ BalanceRequest {
+    accountUrl = binanceBaseUrl ++ "account"
+    , accountTimestamp = floor (now*1000)
+    , accountApiKey = apiKey
+    , accountSecretKey = secretKey
+    }
+
+getBalance :: BalanceRequest -> IO Balance
+getBalance accReq = do
+  let f :: Char -> String
+      f = printf "%02x" . ord
+      secret = BS8.pack (unSecretKey (accountSecretKey accReq))
+      query = "timestamp=" ++ show (accountTimestamp accReq)
+      digest = concatMap f (BS8.unpack (hmac secret (BS8.pack query)))
+      fullQuery = query ++ "&signature=" ++ digest
+
+      url = accountUrl accReq
+      req = Simple.parseRequest_ (url ++ "?" ++ fullQuery)
+
+      reqWithHeader = Simple.addRequestHeader
+        (CI.mk (BS8.pack "X-MBX-APIKEY")) (BS8.pack (unApiKey (accountApiKey accReq))) req
+
+  response <- Simple.httpJSON reqWithHeader
+  
+  return (Simple.getResponseBody response)
 
