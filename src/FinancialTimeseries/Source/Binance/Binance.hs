@@ -44,6 +44,7 @@ import FinancialTimeseries.Source.Row (Row(..), Volume(..))
 import FinancialTimeseries.Source.Binance.Type.BarLength (BarLength(..))
 import FinancialTimeseries.Source.Binance.Type.Symbol (Symbol(Symbol))
 import FinancialTimeseries.Source.Binance.BinanceBaseUrl (binanceBaseUrl)
+import FinancialTimeseries.Source.Binance.Util (utcToMillis, toNumber, toSymbol)
 
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..))
 import FinancialTimeseries.Type.Types (ExchangeRate(..))
@@ -75,9 +76,6 @@ defaultRequestParams apiKey sym len =
   , to = Nothing
   }
 
-  
-utcToMillis :: UTCTime -> Integer
-utcToMillis = (1000*) . round . utcTimeToPOSIXSeconds
 
 url :: RequestParams -> Simple.Request
 url RequestParams{..} =
@@ -89,17 +87,6 @@ url RequestParams{..} =
         ++ maybe "" (\d -> "&endTime=" ++ show (utcToMillis d)) to
   in  Simple.parseRequest_ u
 
-
-toNumber :: (Read a) => Ae.Value -> Maybe a
-toNumber (Ae.String str) = readMaybe (Text.unpack str)
-toNumber _ = Nothing
-
-toSymbol :: Ae.Value -> Maybe Symbol
-toSymbol (Ae.String str) =
-  case readMaybe (Text.unpack str) of
-    Nothing -> Just (Symbol (Text.unpack str))
-    x -> x
-toSymbol _ = Nothing
 
       
 getDataHelper ::
@@ -351,153 +338,6 @@ getOrderTest apiKey secretKey otReq = do
 
 
 -- ------------------------------------------------------------------------------
-
-
-data OrderBookLimit =
-  OBL5
-  | OBL10
-  | OBL20
-  | OBL50
-  | OBL100
-  | OBL500
-  | OBL1000
-  | OBL5000
-  deriving Show
-
-instance Pretty OrderBookLimit where
-  pretty x = show $
-    case x of
-      OBL5 -> 5
-      OBL10 -> 10
-      OBL20 -> 20
-      OBL50 -> 50
-      OBL100 -> 100
-      OBL500 -> 500
-      OBL1000 -> 1000
-      OBL5000 -> 5000
-
-data OrderBookQuery = OrderBookQuery {
-  orderBookUrl :: String
-  , orderBookSymbol :: Symbol
-  , orderBookLimit :: OrderBookLimit
-  }
-
-defaultOrderBookQuery :: Symbol -> OrderBookLimit -> IO OrderBookQuery
-defaultOrderBookQuery sym obl =
-  return $ OrderBookQuery {
-  orderBookUrl = binanceBaseUrl ++ "depth"
-  , orderBookSymbol = sym
-  , orderBookLimit = obl
-  }
-
-data Bid a = Bid {
-  bidPrice :: a
-  , bidQty :: Double
-  } deriving (Show, Read, Functor)
-
-instance (Read a) => Ae.FromJSON (Bid a) where
-  parseJSON (Ae.Array as) = do
-    let prc = toNumber (as Vec.! 0)
-        qty = toNumber (as Vec.! 1)
-
-    case (prc, qty) of
-      (Just p, Just q) -> return (Bid p q)
-      _ -> mzero
-
-  parseJSON _ = mzero
-  
-data Ask a = Ask {
-  askPrice :: a
-  , askQty :: Double
-  } deriving (Show, Read, Functor)
-
-instance (Read a) => Ae.FromJSON (Ask a) where
-  parseJSON (Ae.Array as) = do
-    let prc = toNumber (as Vec.! 0)
-        qty = toNumber (as Vec.! 1)
-
-    case (prc, qty) of
-      (Just p, Just q) -> return (Ask p q)
-      _ -> mzero
-
-  parseJSON _ = mzero
-  
-data OrderBookResponse a = OrderBookResponse {
-  lastUpdateId :: Integer
-  , bids :: [Bid a]
-  , asks :: [Ask a]
-  } deriving (Show, Read, Generic, Ae.FromJSON)
-
-getOrderBook :: (Read a, Show a) => OrderBookQuery -> IO (OrderBookResponse a)
-getOrderBook obq = do
-  let query =
-        "symbol=" ++ show (orderBookSymbol obq)
-        ++ "&limit=" ++ pretty (orderBookLimit obq)
-  
-      url = orderBookUrl obq
-      req = Simple.parseRequest_ (url ++ "?" ++ query)
-
-  response <- Simple.httpJSON req
-  print (Simple.getResponseBody response)
-  return (Simple.getResponseBody response)
-
-instance (Show a) => Pretty (OrderBookResponse a) where
-  pretty (OrderBookResponse uid bs as) =
-    "lastUpdateId:\t" ++ show uid ++ "\n"
-    ++ "\tPRICE\t\tQUANTITY\n"
-    ++ "bids (buyer price):\n"
-    ++ List.intercalate "\n" (map (\(Bid a b) -> "\t" ++ show a ++ "\t\t" ++ show b) bs)
-    ++ "\nasks (seller price):\n"
-    ++ List.intercalate "\n" (map (\(Ask a b) -> "\t" ++ show a ++ "\t\t" ++ show b) as)
-
-
-data BookTickerQuery = BookTickerQuery {
-  bookTickerUrl :: String
-  , bookTickerSymbol :: Maybe Symbol
-  }
-
-defaultBookTickerQuery :: Maybe Symbol -> BookTickerQuery
-defaultBookTickerQuery sym = BookTickerQuery {
-  bookTickerUrl = binanceBaseUrl ++ "ticker/bookTicker"
-  , bookTickerSymbol = sym
-  }
-
-getBookTicker :: (Read a) => BookTickerQuery -> IO (ExchangeRate (UTCTime, HM.HashMap Symbol (Ask a, Bid a)))
-getBookTicker btq = do
-  let query = fmap (("?symbol="++) . show) (bookTickerSymbol btq)
-      url = bookTickerUrl btq
-      req = Simple.parseRequest_ (url ++ maybe "" id query)
-      
-  response <- Simple.httpJSON req
-  now <- getCurrentTime
-
-  let sym = Text.pack "symbol"
-      askPrice = Text.pack "askPrice"
-      askQty = Text.pack "askQty"
-      bidPrice = Text.pack "bidPrice"
-      bidQty = Text.pack "bidQty"
-
-      f (Ae.Object obj) =
-        let sy = 
-              case bookTickerSymbol btq of
-                Nothing -> HM.lookup sym obj >>= toSymbol
-                s@(Just _) -> s
-            ap = HM.lookup askPrice obj >>= toNumber
-            aq = HM.lookup askQty obj >>= toNumber
-            bp = HM.lookup bidPrice obj >>= toNumber
-            bq = HM.lookup bidQty obj >>= toNumber
-        in liftA2 (,) sy (liftA2 (,) (liftA2 Ask ap aq) (liftA2 Bid bp bq))
-      f _ = Nothing
-
-      as =
-        case Simple.getResponseBody response of
-          obj@(Ae.Object _) -> HM.fromList (catMaybes [f obj])
-          Ae.Array arr -> HM.fromList (catMaybes (Vec.toList (Vec.map f arr)))
-          _ -> HM.empty
-          
-
-  return (ExchangeRate (now, as))
-
 
 
 -- ------------------------------------------------------------------------------

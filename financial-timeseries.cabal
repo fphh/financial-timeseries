@@ -31,9 +31,11 @@ library
                    , FinancialTimeseries.Source.Alphavantage
                    , FinancialTimeseries.Source.Binance.Binance
                    , FinancialTimeseries.Source.Binance.BinanceBaseUrl
+                   , FinancialTimeseries.Source.Binance.OrderBook
                    , FinancialTimeseries.Source.Binance.Trades
                    , FinancialTimeseries.Source.Binance.Type.BarLength
                    , FinancialTimeseries.Source.Binance.Type.Symbol
+                   , FinancialTimeseries.Source.Binance.Util
                    , FinancialTimeseries.Source.Row
                    , FinancialTimeseries.Statistics.Statistics
                    , FinancialTimeseries.Test
