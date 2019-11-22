@@ -26,6 +26,7 @@ import qualified FinancialTimeseries.Algorithm.MovingAverage as MA
 
 -- FinancialTimeseries.Source.Binance.TickerPrice qualified
 
+import qualified FinancialTimeseries.Source.Binance.Klines as Klines
 import qualified FinancialTimeseries.Source.Binance.TickerPrice as TickerPrice
 
 import FinancialTimeseries.Source.Binance.Type.BarLength (BarLength, nextTimeSlices)
@@ -97,13 +98,13 @@ trader mvar bl cfg = do
 
   let -- empty = TS.TimeseriesRaw (show sym) (Price Vec.empty)
 
-      tsReq = (Binance.defaultRequestParams "" sym bl) {
-        Binance.limit = Just (limit cfg)
+      tsReq = (Klines.defaultQuery sym bl) {
+        Klines.limit = Just (limit cfg)
         }
       
       refreshAcc = refreshAccount (fraction cfg) ((strategy cfg) (parameters cfg))
       
-  Just empty <- Binance.getSymbol tsReq
+  Just empty <- Klines.get tsReq
 
   let loop us@(acnt, zs) = do
         hm <- takeMVar mvar

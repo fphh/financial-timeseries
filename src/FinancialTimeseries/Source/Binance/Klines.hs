@@ -26,6 +26,7 @@ import FinancialTimeseries.Source.Binance.Type.Symbol (Symbol)
 import FinancialTimeseries.Source.Binance.BinanceBaseUrl (binanceBaseUrl)
 import FinancialTimeseries.Source.Binance.Util (utcToMillis, toNumber)
 
+import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..))
 import FinancialTimeseries.Type.Types (ExchangeRate(..))
 
 import FinancialTimeseries.Util.Pretty (pretty)
@@ -51,10 +52,10 @@ defaultQuery sym len = Query {
   }
 
 
-getHelper ::
+getDataHelper ::
   (Read a) =>
   Query -> IO (Maybe (Vector (UTCTime, Row ExchangeRate a)))
-getHelper query = do
+getDataHelper query = do
   let url =
         endpoint query
         ++ "?symbol=" ++ pretty (symbol query)
@@ -90,19 +91,29 @@ getHelper query = do
   return (sequence us)
 
   
-get ::
+getData ::
   (Read a) =>
   Query -> IO (Maybe (Vector (UTCTime, Row ExchangeRate a)))
-get req =
+getData req =
   case limit req of
-    Nothing -> getHelper req
-    Just x | x <= 1000 -> getHelper req
+    Nothing -> getDataHelper req
+    Just x | x <= 1000 -> getDataHelper req
     
     Just x -> do
-      v <- getHelper req
+      v <- getDataHelper req
       let newReq = req {
             limit = Just (x - 1000)
             , to = fmap (fst . Vec.head) v
             }
-      vs <- get newReq
+      vs <- getData newReq
       return (liftA2 (Vec.++) vs v)
+
+
+
+get ::
+  (Read a) =>
+  Query -> IO (Maybe (TimeseriesRaw ExchangeRate a))
+get req = do
+  ds <- getData req
+  return (fmap (TimeseriesRaw (pretty (symbol req)) . ExchangeRate . Vec.map (fmap (unExchangeRate . close))) ds)
+

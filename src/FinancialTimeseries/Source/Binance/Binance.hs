@@ -6,6 +6,7 @@
 
 module FinancialTimeseries.Source.Binance.Binance where
 
+{-
 
 import Control.Applicative (liftA2)
 
@@ -39,8 +40,10 @@ import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..))
 import FinancialTimeseries.Type.Types (ExchangeRate(..))
 
 import FinancialTimeseries.Util.Pretty (pretty)
+-}
 
 
+{-
 
 data RequestParams = RequestParams {
   baseUrl :: String
@@ -129,7 +132,7 @@ getSymbol ::
 getSymbol req = do
   ds <- getData req
   return (fmap (TimeseriesRaw (pretty (symbol req)) . ExchangeRate . Vec.map (fmap (unExchangeRate . close))) ds)
-
+-}
 
 -- -------------------------------------------------------------------------------
 
