@@ -20,10 +20,10 @@ import FinancialTimeseries.Source.Binance.Type.Symbol (Symbol)
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
 
-data TradeQuery = TradeQuery {
-  tradeUrl :: String
-  , tradeSymbol :: Symbol
-  , tradeLimit :: Maybe Int
+data Query = Query {
+  endpoint :: String
+  , symbol :: Symbol
+  , limit :: Maybe Int
   }
 
 data Trade a = Trade {
@@ -57,21 +57,21 @@ instance (PrintfArg a) => Pretty [Trade a] where
     printf "%8s%8s%8s%12s%30s%6s%6s\n" "ID" "PRICE" "QTY" "QUOTEQTY" "TIME" "BUYER" "BEST"
     ++ concatMap pretty ts
 
-defaultTradeQuery :: Symbol -> Maybe Int -> TradeQuery
-defaultTradeQuery sym lim = TradeQuery {
-  tradeUrl = binanceBaseUrl ++ "trades"
-  , tradeSymbol = sym
-  , tradeLimit = lim
+defaultQuery :: Symbol -> Maybe Int -> Query
+defaultQuery sym lim = Query {
+  endpoint = binanceBaseUrl ++ "trades"
+  , symbol = sym
+  , limit = lim
   }
 
   
-getTrades :: (Read a) => TradeQuery -> IO [Trade a]
-getTrades tq = do
-  let query =
-        "symbol=" ++ pretty (tradeSymbol tq)
-        ++ maybe "" (("&limit="++) . show) (tradeLimit tq)
-      url = tradeUrl tq
-      req = Simple.parseRequest_ (url ++ "?" ++ query)
+get :: (Read a) => Query -> IO [Trade a]
+get query = do
+  let qstr =
+        "symbol=" ++ pretty (symbol query)
+        ++ maybe "" (("&limit="++) . show) (limit query)
+      url = endpoint query
+      req = Simple.parseRequest_ (url ++ "?" ++ qstr)
       
   response <- Simple.httpJSON req
 
