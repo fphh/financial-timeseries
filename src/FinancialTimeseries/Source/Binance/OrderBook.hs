@@ -102,12 +102,38 @@ instance (Read a) => Ae.FromJSON (Ask a) where
       _ -> mzero
 
   parseJSON _ = mzero
+
   
 data OrderBookResponse a = OrderBookResponse {
   lastUpdateId :: Integer
   , bids :: [Bid a]
   , asks :: [Ask a]
   } deriving (Show, Read, Generic, Ae.FromJSON)
+
+
+{-
+
+truncAskOrderList :: (Ord a, Num a) => Double -> [Ask a] -> (a, a)
+truncAskOrderList qty as =
+  let suM = List.foldr (\(Ask p q) acc -> acc+q) 0
+  
+      go _ [] = []
+      go n (Ask p q : xs) =
+        case n <= 0 of
+          True -> []
+          False -> Ask p (min q n) : go (n-q) xs
+
+      qs = go qty as
+
+      f (Ask p q) = q * p
+
+  in (suM qs, sum (map f qs))
+    
+
+askMarketPrice :: (Ord a, Fractional a) => Double -> [Ask a] -> a
+askMarketPrice qty = (\(x, y) -> y/x) . truncAskOrderList qty
+
+-}
 
 getOrderBook :: (Read a, Show a) => OrderBookQuery -> IO (OrderBookResponse a)
 getOrderBook obq = do
