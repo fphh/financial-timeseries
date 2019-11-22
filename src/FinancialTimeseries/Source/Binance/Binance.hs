@@ -42,6 +42,10 @@ import qualified Network.HTTP.Simple as Simple
 
 import FinancialTimeseries.Source.Row (Row(..), Volume(..))
 import FinancialTimeseries.Source.Binance.Type.BarLength (BarLength(..))
+import qualified FinancialTimeseries.Source.Binance.Type.Key as Key
+
+import FinancialTimeseries.Source.Binance.MakeRequest (makeRequest)
+
 import FinancialTimeseries.Source.Binance.Type.Symbol (Symbol(Symbol))
 import FinancialTimeseries.Source.Binance.BinanceBaseUrl (binanceBaseUrl)
 import FinancialTimeseries.Source.Binance.Util (utcToMillis, toNumber, toSymbol)
@@ -196,13 +200,6 @@ getAvgExchangeRate ::
 getAvgExchangeRate req =
   getTickerExchangeRateHelper (req { priceBaseUrl = priceBaseUrl req ++ "avgExchangeRate" })
 
-newtype ApiKey = ApiKey {
-  unApiKey :: String
-  }
-
-newtype SecretKey = SecretKey {
-  unSecretKey :: String
-  }
 
 data AccountRequest = AccountRequest {
   accountUrl :: String
@@ -252,20 +249,7 @@ defaultAccountRequest = do
     , accountTimestamp = floor (now*1000)
     }
 
-type Query = String
-type Url = String
-
-makeRequest :: ApiKey -> SecretKey -> Url -> Query -> Simple.Request
-makeRequest (ApiKey apiKey) (SecretKey secretKey) url query =
-  let f = printf "%02x" . ord
-      secret = BS8.pack secretKey
-      digest = concatMap f (BS8.unpack (hmac secret (BS8.pack query)))
-      fullQuery = query ++ "&signature=" ++ digest
-      req = Simple.parseRequest_ (url ++ "?" ++ fullQuery)
-      reqWithHeader = Simple.addRequestHeader (CI.mk (BS8.pack "X-MBX-APIKEY")) (BS8.pack apiKey) req
-  in reqWithHeader
-
-getAccount :: ApiKey -> SecretKey -> AccountRequest -> IO Account
+getAccount :: Key.Api -> Key.Secret -> AccountRequest -> IO Account
 getAccount apiKey secretKey accReq = do
   let query = "timestamp=" ++ show (accountTimestamp accReq)
       url = accountUrl accReq
@@ -282,59 +266,6 @@ getAccount apiKey secretKey accReq = do
 
 
 -- ------------------------------------------------------------------------------
-
-
-data OrderType =
-  -- LIMIT
-  MARKET
-  deriving (Show)
-
-data OrderSide =
-  BUY
-  | SELL
-  deriving (Show)
-
-newtype Quantity = Quantity {
-  unQuantity :: Double
-  }
-
-data OrderTestRequest = OrderTestRequest {
-  orderTestUrl :: String
-  , orderTestTimestamp :: Int
-  , orderTestType :: OrderType
-  , orderTestSide :: OrderSide
-  , orderTestSymbol :: Symbol
-  , orderTestQuantity :: Quantity
-  }
-
-
-defaultOrderTestRequest :: OrderType -> OrderSide -> Symbol -> Quantity -> IO OrderTestRequest
-defaultOrderTestRequest ty side sym qty = do
-  now <- getPOSIXTime
-  return $ OrderTestRequest {
-    orderTestUrl = "POST " ++ binanceBaseUrl ++ "order/test"
-    , orderTestTimestamp = floor (now*1000)
-    , orderTestType = ty
-    , orderTestSide = side
-    , orderTestSymbol = sym
-    , orderTestQuantity = qty
-    }
-
-
-getOrderTest :: ApiKey -> SecretKey -> OrderTestRequest -> IO Ae.Value
-getOrderTest apiKey secretKey otReq = do
-  let query =
-        "timestamp=" ++ show (orderTestTimestamp otReq)
-        ++ "&symbol=" ++ show (orderTestSymbol otReq)
-        ++ "&side=" ++ show (orderTestSide otReq)
-        ++ "&type=" ++ show (orderTestType otReq)
-        ++ "&quantity=" ++ show (unQuantity (orderTestQuantity otReq))
-  
-      url = orderTestUrl otReq
-      req = makeRequest apiKey secretKey url query
-
-  response <- Simple.httpJSON req  
-  return (Simple.getResponseBody response)
 
 
 -- ------------------------------------------------------------------------------

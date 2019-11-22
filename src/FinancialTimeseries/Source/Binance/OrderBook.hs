@@ -1,9 +1,6 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE DeriveFunctor #-}
-
 
 module FinancialTimeseries.Source.Binance.OrderBook where
 
@@ -156,20 +153,20 @@ getBookTicker btq = do
   now <- getCurrentTime
 
   let sym = Text.pack "symbol"
-      askPrice = Text.pack "askPrice"
-      askQty = Text.pack "askQty"
-      bidPrice = Text.pack "bidPrice"
-      bidQty = Text.pack "bidQty"
+      askP = Text.pack "askPrice"
+      askQ = Text.pack "askQty"
+      bidP = Text.pack "bidPrice"
+      bidQ = Text.pack "bidQty"
 
       f (Ae.Object obj) =
         let sy = 
               case bookTickerSymbol btq of
                 Nothing -> HM.lookup sym obj >>= toSymbol
                 s@(Just _) -> s
-            ap = HM.lookup askPrice obj >>= toNumber
-            aq = HM.lookup askQty obj >>= toNumber
-            bp = HM.lookup bidPrice obj >>= toNumber
-            bq = HM.lookup bidQty obj >>= toNumber
+            ap = HM.lookup askP obj >>= toNumber
+            aq = HM.lookup askQ obj >>= toNumber
+            bp = HM.lookup bidP obj >>= toNumber
+            bq = HM.lookup bidQ obj >>= toNumber
         in liftA2 (,) sy (liftA2 (,) (liftA2 Ask ap aq) (liftA2 Bid bp bq))
       f _ = Nothing
 
