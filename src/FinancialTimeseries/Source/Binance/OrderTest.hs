@@ -12,6 +12,8 @@ import FinancialTimeseries.Source.Binance.Type.Symbol (Symbol)
 import qualified FinancialTimeseries.Source.Binance.Type.Key as Key
 import FinancialTimeseries.Source.Binance.BinanceBaseUrl (binanceBaseUrl)
 
+import FinancialTimeseries.Type.Types (Quantity(..))
+
 
 data OrderType =
   -- LIMIT
@@ -23,21 +25,17 @@ data OrderSide =
   | SELL
   deriving (Show)
 
-newtype Quantity = Quantity {
-  unQuantity :: Double
-  }
-
 data OrderTestRequest = OrderTestRequest {
   orderTestUrl :: String
   , orderTestTimestamp :: Int
   , orderTestType :: OrderType
   , orderTestSide :: OrderSide
   , orderTestSymbol :: Symbol
-  , orderTestQuantity :: Quantity
+  , orderTestQuantity :: Quantity Double
   }
 
 
-defaultOrderTestRequest :: OrderType -> OrderSide -> Symbol -> Quantity -> IO OrderTestRequest
+defaultOrderTestRequest :: OrderType -> OrderSide -> Symbol -> Quantity Double -> IO OrderTestRequest
 defaultOrderTestRequest ty side sym qty = do
   now <- getPOSIXTime
   return $ OrderTestRequest {
