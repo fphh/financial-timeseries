@@ -25,40 +25,40 @@ data OrderSide =
   | SELL
   deriving (Show)
 
-data OrderTestQuery = OrderTestQuery {
-  orderTestUrl :: String
-  , orderTestTimestamp :: Int
-  , orderTestType :: OrderType
-  , orderTestSide :: OrderSide
-  , orderTestSymbol :: Symbol
-  , orderTestQuantity :: Quantity Double
+data Query = Query {
+  endpoint :: String
+  , timestamp :: Int
+  , type_ :: OrderType
+  , side :: OrderSide
+  , symbol :: Symbol
+  , quantity :: Quantity Double
   }
 
 
-defaultOrderTestQuery :: OrderType -> OrderSide -> Symbol -> Quantity Double -> IO OrderTestQuery
-defaultOrderTestQuery ty side sym qty = do
+defaultQuery :: OrderType -> OrderSide -> Symbol -> Quantity Double -> IO Query
+defaultQuery ty side sym qty = do
   now <- getPOSIXTime
-  return $ OrderTestQuery {
-    orderTestUrl = "POST " ++ binanceBaseUrl ++ "order/test"
-    , orderTestTimestamp = floor (now*1000)
-    , orderTestType = ty
-    , orderTestSide = side
-    , orderTestSymbol = sym
-    , orderTestQuantity = qty
+  return $ Query {
+    endpoint = "POST " ++ binanceBaseUrl ++ "order/test"
+    , timestamp = floor (now*1000)
+    , type_ = ty
+    , side = side
+    , symbol = sym
+    , quantity = qty
     }
 
 
-getOrderTest :: Key.Api -> Key.Secret -> OrderTestQuery -> IO Ae.Value
-getOrderTest apiKey secretKey otReq = do
-  let query =
-        "timestamp=" ++ show (orderTestTimestamp otReq)
-        ++ "&symbol=" ++ show (orderTestSymbol otReq)
-        ++ "&side=" ++ show (orderTestSide otReq)
-        ++ "&type=" ++ show (orderTestType otReq)
-        ++ "&quantity=" ++ show (unQuantity (orderTestQuantity otReq))
+get :: Key.Api -> Key.Secret -> Query -> IO Ae.Value
+get apiKey secretKey query = do
+  let qstr =
+        "timestamp=" ++ show (timestamp query)
+        ++ "&type=" ++ show (type_ query)
+        ++ "&side=" ++ show (side query)
+        ++ "&symbol=" ++ show (symbol query)
+        ++ "&quantity=" ++ show (unQuantity (quantity query))
   
-      url = orderTestUrl otReq
-      req = makeRequest apiKey secretKey url query
+      url = endpoint query
+      req = makeRequest apiKey secretKey url qstr
 
   response <- Simple.httpJSON req  
   return (Simple.getResponseBody response)

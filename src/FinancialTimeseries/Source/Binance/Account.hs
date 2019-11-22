@@ -20,9 +20,9 @@ import FinancialTimeseries.Source.Binance.MakeRequest (makeRequest)
 
 
 
-data AccountQuery = AccountQuery {
-  accountUrl :: String
-  , accountTimestamp :: Int
+data Query = Query {
+  endpoint :: String
+  , timestamp :: Int
   }
 
 
@@ -60,19 +60,19 @@ data Account = Account {
   } deriving (Show, Generic, Ae.FromJSON)
 
 
-defaultAccountQuery :: IO AccountQuery
-defaultAccountQuery = do
+defaultQuery :: IO Query
+defaultQuery = do
   now <- getPOSIXTime
-  return $ AccountQuery {
-    accountUrl = binanceBaseUrl ++ "account"
-    , accountTimestamp = floor (now*1000)
+  return $ Query {
+    endpoint = binanceBaseUrl ++ "account"
+    , timestamp = floor (now*1000)
     }
 
-getAccount :: Key.Api -> Key.Secret -> AccountQuery -> IO Account
-getAccount apiKey secretKey accReq = do
-  let query = "timestamp=" ++ show (accountTimestamp accReq)
-      url = accountUrl accReq
-      req = makeRequest apiKey secretKey url query
+get :: Key.Api -> Key.Secret -> Query -> IO Account
+get apiKey secretKey query = do
+  let qstr = "timestamp=" ++ show (timestamp query)
+      url = endpoint query
+      req = makeRequest apiKey secretKey url qstr
   
   response <- Simple.httpJSON req
 
