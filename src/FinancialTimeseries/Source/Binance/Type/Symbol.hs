@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 
-module FinancialTimeseries.Source.Binance.Symbol where
+module FinancialTimeseries.Source.Binance.Type.Symbol where
 
 import Data.Hashable (Hashable)
 import GHC.Generics (Generic)
@@ -14,7 +14,8 @@ instance Pretty Symbol where
 
 
 data Symbol =
-  ETHBTC
+  Symbol String
+  | ETHBTC
   | LTCBTC
   | BNBBTC
   | NEOBTC
@@ -674,4 +675,4 @@ data Symbol =
   | IOTXUSDT
   | RLCUSDT
   | MCOUSDT
-  deriving (Show, Read, Eq, Enum, Ord, Hashable, Generic)
+  deriving (Show, Read, Eq, Ord, Hashable, Generic)

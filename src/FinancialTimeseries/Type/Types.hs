@@ -98,6 +98,17 @@ instance StripPrice Price where
   price = Price
 
 
+newtype Quantity a = Quantity {
+  unQuantity :: a
+  } deriving (Functor, Show, Read, Eq)
+
+instance Pretty a => Pretty (Quantity a) where
+  pretty (Quantity x) = "Quantity:\n" ++ pretty x
+
+instance Distributive Quantity where
+  distribute = Quantity . fmap unQuantity
+
+
 newtype ExchangeRate a = ExchangeRate {
   unExchangeRate :: a
   } deriving (Functor, Show, Read)

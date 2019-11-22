@@ -1,7 +1,7 @@
 
 
 
-module FinancialTimeseries.Source.Binance.BarLength where
+module FinancialTimeseries.Source.Binance.Type.BarLength where
 
 import Data.Time (UTCTime(..), NominalDiffTime, getCurrentTime, addUTCTime, secondsToDiffTime)
 

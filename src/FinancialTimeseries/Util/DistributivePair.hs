@@ -18,6 +18,13 @@ class DistributivePair f where
   undistributePair :: (f a, f b) -> f (a, b)
 
 
+instance DistributivePair Maybe where
+  distributePair Nothing = (Nothing, Nothing)
+  distributePair (Just (a, b)) = (Just a, Just b)
+
+  undistributePair (Just a, Just b) = Just (a, b)
+  undistributePair _ = Nothing
+
 undistributeEither ::
   (Functor f) =>
   Either (f a) (f b) -> f (Either a b)

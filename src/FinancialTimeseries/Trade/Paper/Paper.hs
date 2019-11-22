@@ -22,10 +22,11 @@ import qualified Data.List as List
 
 import qualified FinancialTimeseries.Algorithm.MovingAverage as MA
 
-import qualified FinancialTimeseries.Source.Binance.BarLength as BarLength
-import FinancialTimeseries.Source.Binance.BarLength (BarLength, nextTimeSlices)
 import qualified FinancialTimeseries.Source.Binance.Binance as Binance
-import FinancialTimeseries.Source.Binance.Symbol (Symbol)
+import FinancialTimeseries.Source.Binance.Type.BarLength (BarLength, nextTimeSlices)
+
+import qualified FinancialTimeseries.Source.Binance.Type.BarLength as BarLength
+import FinancialTimeseries.Source.Binance.Type.Symbol (Symbol)
 
 import FinancialTimeseries.Trade.Account (Account(..))
 import FinancialTimeseries.Trade.LoggerData (LoggerData(..), logger)
