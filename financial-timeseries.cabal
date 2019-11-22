@@ -29,11 +29,14 @@ library
                    , FinancialTimeseries.Render.Table
                    , FinancialTimeseries.Report.Standard
                    , FinancialTimeseries.Source.Alphavantage
+                   , FinancialTimeseries.Source.Binance.Account
                    , FinancialTimeseries.Source.Binance.Binance
                    , FinancialTimeseries.Source.Binance.BinanceBaseUrl
+                   , FinancialTimeseries.Source.Binance.Klines
                    , FinancialTimeseries.Source.Binance.MakeRequest
                    , FinancialTimeseries.Source.Binance.OrderBook
                    , FinancialTimeseries.Source.Binance.OrderTest
+                   , FinancialTimeseries.Source.Binance.TickerPrice
                    , FinancialTimeseries.Source.Binance.Trades
                    , FinancialTimeseries.Source.Binance.Type.BarLength
                    , FinancialTimeseries.Source.Binance.Type.Key

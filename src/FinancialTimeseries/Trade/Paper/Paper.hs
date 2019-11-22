@@ -22,7 +22,12 @@ import qualified Data.List as List
 
 import qualified FinancialTimeseries.Algorithm.MovingAverage as MA
 
-import qualified FinancialTimeseries.Source.Binance.Binance as Binance
+-- import qualified FinancialTimeseries.Source.Binance.Binance as Binance
+
+-- FinancialTimeseries.Source.Binance.TickerPrice qualified
+
+import qualified FinancialTimeseries.Source.Binance.TickerPrice as TickerPrice
+
 import FinancialTimeseries.Source.Binance.Type.BarLength (BarLength, nextTimeSlices)
 
 import qualified FinancialTimeseries.Source.Binance.Type.BarLength as BarLength
@@ -146,7 +151,7 @@ ticker (bl, cfgs) = do
         let delta = t `diffUTCTime` now
         threadDelay (round (realToFrac delta * 1000 * 1000))
 
-        ps <- Binance.getTickerExchangeRate Binance.defaultExchangeRateRequest
+        ps <- TickerPrice.get TickerPrice.defaultQuery
 
         xnow <- getCurrentTime
 

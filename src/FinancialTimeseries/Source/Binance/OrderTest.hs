@@ -25,7 +25,7 @@ data OrderSide =
   | SELL
   deriving (Show)
 
-data OrderTestRequest = OrderTestRequest {
+data OrderTestQuery = OrderTestQuery {
   orderTestUrl :: String
   , orderTestTimestamp :: Int
   , orderTestType :: OrderType
@@ -35,10 +35,10 @@ data OrderTestRequest = OrderTestRequest {
   }
 
 
-defaultOrderTestRequest :: OrderType -> OrderSide -> Symbol -> Quantity Double -> IO OrderTestRequest
-defaultOrderTestRequest ty side sym qty = do
+defaultOrderTestQuery :: OrderType -> OrderSide -> Symbol -> Quantity Double -> IO OrderTestQuery
+defaultOrderTestQuery ty side sym qty = do
   now <- getPOSIXTime
-  return $ OrderTestRequest {
+  return $ OrderTestQuery {
     orderTestUrl = "POST " ++ binanceBaseUrl ++ "order/test"
     , orderTestTimestamp = floor (now*1000)
     , orderTestType = ty
@@ -48,7 +48,7 @@ defaultOrderTestRequest ty side sym qty = do
     }
 
 
-getOrderTest :: Key.Api -> Key.Secret -> OrderTestRequest -> IO Ae.Value
+getOrderTest :: Key.Api -> Key.Secret -> OrderTestQuery -> IO Ae.Value
 getOrderTest apiKey secretKey otReq = do
   let query =
         "timestamp=" ++ show (orderTestTimestamp otReq)
