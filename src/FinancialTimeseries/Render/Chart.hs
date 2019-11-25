@@ -46,11 +46,12 @@ import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
 
 chart ::
-  (StripPrice price, E.PlotValue a, Fractional a) =>
-  Equity (Vector (UTCTime, a)) -> [Timeseries price a] -> LChart String UTCTime a
+  forall a price.
+  (StripPrice price, Real a) =>
+  Equity (Vector (UTCTime, a)) -> [Timeseries price a] -> LChart String UTCTime Double
 chart res vs =
   let f (Timeseries (TimeseriesRaw nam tsVec) segs halfSeg as) =
-        let ts = stripPrice tsVec
+        let ts = Vec.map (fmap realToFrac) (stripPrice tsVec)
             (_, mi) = Vec.minimumBy (compare `on` snd) ts
             (_, ma) = Vec.maximumBy (compare `on` snd) ts
             m = mi + (ma - mi) * 0.8
@@ -67,9 +68,10 @@ chart res vs =
                   ys = [(t0,spikeLow), (t0, spikeHigh), (t0, m), (tn, m)]
               in Vec.fromList ys
             hs = maybe [] ((:[]) . h) halfSeg
-        in [Labeled nam [ts], Labeled (nam ++ " (inv. / not inv.)") (map g segs ++ hs)]
+            zs = map (Vec.map (fmap realToFrac)) (map g segs ++ hs)
+        in [Labeled nam [ts], Labeled (nam ++ " (inv. / not inv.)") zs]
            ++ map (fmap (:[])) as
-  in Chart "Timeseries" (concatMap f vs ++ [Labeled "Equity" [unEquity res]])
+  in Chart "Timeseries" (concatMap f vs ++ [Labeled "Equity" [Vec.map (fmap realToFrac) (unEquity res)]])
 
 
 

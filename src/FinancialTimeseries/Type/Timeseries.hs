@@ -33,7 +33,7 @@ import FinancialTimeseries.Util.DistributivePair (undistributeEither)
 data TimeseriesRaw price a = TimeseriesRaw {
   name :: String
   , timeseries :: price (Vector (UTCTime, a))
-  }
+  } deriving (Functor)
   
 deriving instance (Show (price (Vector (UTCTime, a)))) => Show (TimeseriesRaw price a)
 deriving instance (Read (price (Vector (UTCTime, a)))) => Read (TimeseriesRaw price a)
@@ -42,8 +42,8 @@ data Timeseries price a = Timeseries {
   timeseriesRaw :: TimeseriesRaw price a
   , investedSegments :: [Segment]
   , lastSegment :: Maybe HalfSegment
-  , additionalSeries :: [Labeled String (Vector (UTCTime, a))]
-  }
+  , additionalSeries :: [Labeled String (Vector (UTCTime, Double))]
+  } deriving (Functor)
   
 deriving instance (Show a, Show (price (Vector (UTCTime, a)))) => Show (Timeseries price a)
 deriving instance (Read a, Read (price (Vector (UTCTime, a)))) => Read (Timeseries price a)

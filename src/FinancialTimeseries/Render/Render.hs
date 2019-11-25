@@ -28,16 +28,20 @@ import FinancialTimeseries.Render.Chart (renderChart)
 import FinancialTimeseries.Render.Css ((!))
 import FinancialTimeseries.Render.HtmlReader (HtmlReader)
 import FinancialTimeseries.Render.Table (table)
+import FinancialTimeseries.Type.ByQuantity (ByQuantity(..), PriceByQuantity(..))
 import FinancialTimeseries.Type.Chart (Chart(..), LChart, ParaCurve(..))
 import FinancialTimeseries.Type.Histogram (Histogram(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.MonteCarlo (Broom(..), MonteCarlo(..))
 import FinancialTimeseries.Type.Table (Table)
+import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..))
 import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), TimeseriesYield(..), TradeYield(..), Price(..), AbsoluteDrawdown(..), RelativeDrawdown(..))
 import FinancialTimeseries.Type.Short (Short(..))
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
+import FinancialTimeseries.Source.Binance.Type.Ask (Ask(..))
+import FinancialTimeseries.Source.Binance.Type.Bid (Bid(..))
 
 class Render a where
   render :: [String] -> a -> HtmlReader Html
@@ -108,6 +112,34 @@ instance (Ord a, E.PlotValue a) => Render (Broom a) where
         c = Chart "Broom" (Vec.toList (Vec.imap f vs))
 
     in fmap (h <>) (renderChart c)
+
+
+instance (E.PlotValue a, Num a) => Render (TimeseriesRaw PriceByQuantity (Bid a, Ask a)) where
+  render xs (TimeseriesRaw n (PriceByQuantity (Price (ByQuantity ps qty)))) =
+    let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " (xs ++ ["Spread " ++ n])))
+
+        blue = E.opaque (sRGB24 0 0 220)
+        red = E.opaque (sRGB24 220 0 0)
+        green = E.opaque (sRGB24 0 120 0)
+
+        as = Labeled
+          (n ++ " (Ask, qty " ++ show qty ++ ")")
+          (ParaCurve (E.setColors [blue]) [Vec.map (fmap (unAsk . snd)) ps])
+          
+        bs = Labeled
+          (n ++ " (Bid, qty " ++ show qty ++ ")")
+          (ParaCurve (E.setColors [green]) [Vec.map (fmap (unBid . fst)) ps])
+
+        f (Bid b, Ask a) = a - b
+        
+        cs = Labeled
+          (n ++ "Spread")
+          (ParaCurve (E.setColors [red]) [Vec.map (fmap f) ps])
+
+        c = Chart "Broom" [bs, as {- , cs -} ]
+    in fmap (h <>) (renderChart c)
+
+
 
 instance (Pretty params, Render a) => Render (Labeled params a) where
   render xs (Labeled lbl ys) = render (xs ++ [pretty lbl]) ys

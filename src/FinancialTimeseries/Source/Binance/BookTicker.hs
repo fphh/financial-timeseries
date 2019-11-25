@@ -2,10 +2,8 @@
 
 module FinancialTimeseries.Source.Binance.BookTicker where
 
-import GHC.Generics (Generic)
 
 import Control.Applicative (liftA2)
-import Control.Monad (mzero)
 
 import Data.Time (UTCTime, getCurrentTime)
 
@@ -13,7 +11,6 @@ import Data.Maybe (catMaybes)
 
 import qualified Data.Vector as Vec
 
-import qualified Data.List as List
 
 import qualified Data.Aeson as Ae
 import qualified Data.HashMap.Strict as HM
@@ -28,9 +25,8 @@ import FinancialTimeseries.Source.Binance.Type.Symbol (Symbol)
 import FinancialTimeseries.Source.Binance.BinanceBaseUrl (binanceBaseUrl)
 import FinancialTimeseries.Source.Binance.Util (toNumber, toSymbol)
 
+import FinancialTimeseries.Type.ByQuantity (ByQuantity(..))
 import FinancialTimeseries.Type.Types (ExchangeRate(..))
-
-import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
 
 
@@ -45,7 +41,7 @@ defaultQuery sym = Query {
   , symbol = sym
   }
 
-get :: (Read a) => Query -> IO (ExchangeRate (UTCTime, HM.HashMap Symbol (Ask a, Bid a)))
+get :: (Read a) => Query -> IO (ExchangeRate (UTCTime, HM.HashMap Symbol (ByQuantity (Bid a), ByQuantity (Ask a))))
 get query = do
   let qstr = fmap (("?symbol="++) . show) (symbol query)
       url = endpoint query
@@ -69,7 +65,10 @@ get query = do
             aq = HM.lookup askQ obj >>= toNumber
             bp = HM.lookup bidP obj >>= toNumber
             bq = HM.lookup bidQ obj >>= toNumber
-        in liftA2 (,) sy (liftA2 (,) (liftA2 Ask ap aq) (liftA2 Bid bp bq))
+            byQty g p q = ByQuantity (g p) q
+        in liftA2 (,) sy (liftA2 (,) (liftA2 (byQty Bid) ap aq) (liftA2 (byQty Ask) bp bq))
+
+        
       f _ = Nothing
 
       as =

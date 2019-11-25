@@ -5,15 +5,18 @@
 module FinancialTimeseries.Test where
 
 
-import Control.Applicative (liftA2)
+import Control.Applicative (liftA2, liftA3)
 
 import qualified Test.QuickCheck as QC
 
 import Data.Time (UTCTime, addUTCTime, parseTimeM, defaultTimeLocale)
+import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 
 import qualified Data.Vector as Vec
 import Data.Vector (Vector)
 
+import qualified Data.ByteString.Lazy.Char8 as BSL8
+import qualified Data.Text.Lazy as Text
 
 import qualified Data.List as List
 
@@ -22,6 +25,12 @@ import FinancialTimeseries.Algorithm.Evaluate (long, evaluateInvested)
 import FinancialTimeseries.Algorithm.MovingAverage (Window(..), movingAverage)
 -- import FinancialTimeseries.Statistics.Trade (ROI(..), Stats(count, meanROI, totalROI), statistics)
 
+import qualified FinancialTimeseries.Source.Binance.Collector as Collector
+import qualified FinancialTimeseries.Source.Binance.OrderBook as OrderBook
+import FinancialTimeseries.Source.Binance.Type.Ask (Ask(..))
+import FinancialTimeseries.Source.Binance.Type.Bid (Bid(..))
+
+import FinancialTimeseries.Type.ByQuantity (ByQuantity(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), Price(..), partitionInvested)
@@ -336,12 +345,33 @@ prop_timeseries_halfsegment (MovingAvgTest w ts) =
 
 -- --------------------------------------------------------------------------
 
+instance QC.Arbitrary UTCTime where
+  arbitrary = QC.choose (0, maxBound :: Int) >>= return . posixSecondsToUTCTime . fromIntegral
+
+instance (QC.Arbitrary a) => QC.Arbitrary (ByQuantity (Ask a)) where
+  arbitrary = liftA2 (\a b -> ByQuantity (Ask a) b) QC.arbitrary QC.arbitrary
+
+instance (QC.Arbitrary a) => QC.Arbitrary (ByQuantity (Bid a)) where
+  arbitrary = liftA2 (\a b -> ByQuantity (Bid a) b) QC.arbitrary QC.arbitrary
+
+instance (QC.Arbitrary a) => QC.Arbitrary (OrderBook.Response a) where
+  arbitrary = liftA3 OrderBook.Response QC.arbitrary QC.arbitrary QC.arbitrary
+
+instance QC.Arbitrary Collector.CollectedData where
+  arbitrary = liftA3 Collector.CollectedData QC.arbitrary QC.arbitrary QC.arbitrary
+
+prop_collector_serialize_unserialize :: [Collector.CollectedData] -> Bool
+prop_collector_serialize_unserialize xs =
+  Collector.unserialize (unlines (map Collector.serialize xs)) == xs
+  
+-- --------------------------------------------------------------------------
+
 check :: (QC.Testable a) => a -> IO ()
 check = QC.quickCheck . QC.withMaxSuccess 10000
 
 test :: IO ()
 test = do
-
+{-
   check prop_segment_length_non_zero
   check prop_segment_last_idx
   check prop_segment_all_less
@@ -364,3 +394,5 @@ test = do
 
   -- check prop_montecarlo_peak_drawdown
   -- check prop_montecarlo_mean_profit
+-}
+  check prop_collector_serialize_unserialize
