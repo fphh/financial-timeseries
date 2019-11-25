@@ -28,15 +28,15 @@ import FinancialTimeseries.Render.Chart (renderChart)
 import FinancialTimeseries.Render.Css ((!))
 import FinancialTimeseries.Render.HtmlReader (HtmlReader)
 import FinancialTimeseries.Render.Table (table)
-import FinancialTimeseries.Type.ByQuantity (ByQuantity(..), PriceByQuantity(..))
+import FinancialTimeseries.Type.ByQuantity (ByQuantity(..), ExchangeRateByQuantity(..))
 import FinancialTimeseries.Type.Chart (Chart(..), LChart, ParaCurve(..))
 import FinancialTimeseries.Type.Histogram (Histogram(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.MonteCarlo (Broom(..), MonteCarlo(..))
 import FinancialTimeseries.Type.Table (Table)
-import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..))
-import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), TimeseriesYield(..), TradeYield(..), Price(..), AbsoluteDrawdown(..), RelativeDrawdown(..))
+import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), Timeseries(..))
+import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), TimeseriesYield(..), TradeYield(..), Price(..), ExchangeRate(..), AbsoluteDrawdown(..), RelativeDrawdown(..))
 import FinancialTimeseries.Type.Short (Short(..))
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
@@ -69,6 +69,9 @@ instance (Render a) => Render (TradeYield a) where
 
 instance (Render a) => Render (Price a) where
   render xs (Price m) = render (xs ++ ["Price"]) m
+
+instance (Render a) => Render (ExchangeRate a) where
+  render xs (ExchangeRate m) = render (xs ++ ["ExchangeRate"]) m
 
 instance (Render a) => Render (AbsoluteDrawdown a) where
   render xs (AbsoluteDrawdown m) = render (xs ++ ["AbsoluteDrawdown"]) m
@@ -114,29 +117,20 @@ instance (Ord a, E.PlotValue a) => Render (Broom a) where
     in fmap (h <>) (renderChart c)
 
 
-instance (E.PlotValue a, Num a) => Render (TimeseriesRaw PriceByQuantity (Bid a, Ask a)) where
-  render xs (TimeseriesRaw n (PriceByQuantity (Price (ByQuantity ps qty)))) =
+instance (E.PlotValue a, Num a, Fractional a) => Render (Timeseries ExchangeRateByQuantity (Bid a, Ask a)) where
+  render xs (Timeseries (TimeseriesRaw n (ExchangeRateByQuantity (ExchangeRate (ByQuantity ps qty)))) _ _ addser) =
     let h = H5.h1 $ H5.span $ H5.toHtml (Text.pack (List.intercalate ", " (xs ++ ["Spread " ++ n])))
+    
+        as = Labeled (n ++ " (Ask, qty " ++ show qty ++ ")") [Vec.map (fmap (unAsk . snd)) ps]
+        bs = Labeled (n ++ " (Bid, qty " ++ show qty ++ ")") [Vec.map (fmap (unBid . fst)) ps]
 
-        blue = E.opaque (sRGB24 0 0 220)
-        red = E.opaque (sRGB24 220 0 0)
-        green = E.opaque (sRGB24 0 120 0)
+        f (Bid b, Ask a) = (a+b) / 2 -- a - b
+        cs = Labeled (n ++ " (Ask+Bid)/2") [Vec.map (fmap f) ps]
 
-        as = Labeled
-          (n ++ " (Ask, qty " ++ show qty ++ ")")
-          (ParaCurve (E.setColors [blue]) [Vec.map (fmap (unAsk . snd)) ps])
-          
-        bs = Labeled
-          (n ++ " (Bid, qty " ++ show qty ++ ")")
-          (ParaCurve (E.setColors [green]) [Vec.map (fmap (unBid . fst)) ps])
+        toCurve (Labeled str vs) = Labeled str [Vec.map (fmap realToFrac) vs]
 
-        f (Bid b, Ask a) = a - b
+        c = Chart "Spread" ([bs, as, cs] ++ (map toCurve addser))
         
-        cs = Labeled
-          (n ++ "Spread")
-          (ParaCurve (E.setColors [red]) [Vec.map (fmap f) ps])
-
-        c = Chart "Broom" [bs, as {- , cs -} ]
     in fmap (h <>) (renderChart c)
 
 

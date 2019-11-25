@@ -111,7 +111,7 @@ instance Distributive Quantity where
 
 newtype ExchangeRate a = ExchangeRate {
   unExchangeRate :: a
-  } deriving (Functor, Show, Read)
+  } deriving (Functor, Show, Read, Eq)
 
 instance Pretty a => Pretty (ExchangeRate a) where
   pretty (ExchangeRate x) = "ExchangeRate:\n" ++ pretty x

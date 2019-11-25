@@ -16,7 +16,7 @@ import qualified Data.Vector as Vec
 import Data.Vector (Vector)
 
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..))
-import FinancialTimeseries.Type.Types (Price(..))
+import FinancialTimeseries.Type.Types (ExchangeRate(..))
 
 import qualified FinancialTimeseries.Source.Binance.OrderBook as OrderBook
 
@@ -24,7 +24,7 @@ import FinancialTimeseries.Source.Binance.Type.Ask (Ask(..))
 import qualified FinancialTimeseries.Source.Binance.Type.BarLength as BarLength
 import FinancialTimeseries.Source.Binance.Type.BarLength (BarLength)
 import FinancialTimeseries.Source.Binance.Type.Bid (Bid(..))
-import FinancialTimeseries.Type.ByQuantity (ByQuantity(..), PriceByQuantity(..))
+import FinancialTimeseries.Type.ByQuantity (ByQuantity(..), ExchangeRateByQuantity(..))
 import FinancialTimeseries.Source.Binance.Type.Symbol (Symbol)
 
 
@@ -152,18 +152,18 @@ bidByQuantity qty as =
   in ByQuantity (Bid (sum qs / realToFrac qty)) qty
 
 
-pricesByQuantity ::
-  String -> Double -> Vector CollectedData -> TimeseriesRaw PriceByQuantity (Bid Double, Ask Double)
-pricesByQuantity nam qty vs =
+exchangeRateByQuantity ::
+  String -> Double -> Vector CollectedData -> TimeseriesRaw ExchangeRateByQuantity (Bid Double, Ask Double)
+exchangeRateByQuantity nam qty vs =
   let f (CollectedData start end (OrderBook.Response _ bs as)) =
         let t = ((end `diffUTCTime` start) / 2) `addUTCTime` start
             ByQuantity us _ = bidByQuantity qty bs
             ByQuantity ws _ = askByQuantity qty as
         in (t, (us, ws))
-      g x qty = Price (ByQuantity x qty)
+      g x qty = ExchangeRate (ByQuantity x qty)
   in TimeseriesRaw {
     name = nam
-    , timeseries = PriceByQuantity (Price (ByQuantity (Vec.map f vs) qty))
+    , timeseries = ExchangeRateByQuantity (ExchangeRate (ByQuantity (Vec.map f vs) qty))
     }
 
 readCollectedData :: FilePath -> IO (Vector CollectedData)
