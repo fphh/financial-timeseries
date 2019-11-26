@@ -33,6 +33,7 @@ import FinancialTimeseries.Source.Binance.Type.Bid (Bid(..))
 import FinancialTimeseries.Type.ByQuantity (ByQuantity(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Long (Long(..))
+import FinancialTimeseries.Type.Timed (Timed(..))
 import FinancialTimeseries.Type.Types (Invested(..), NotInvested(..), Equity(..), Price(..), partitionInvested)
 import FinancialTimeseries.Type.Segment (Segment(..), HalfSegment(..), segments)
 
@@ -357,10 +358,10 @@ instance (QC.Arbitrary a) => QC.Arbitrary (ByQuantity (Bid a)) where
 instance (QC.Arbitrary a) => QC.Arbitrary (OrderBook.Response a) where
   arbitrary = liftA3 OrderBook.Response QC.arbitrary QC.arbitrary QC.arbitrary
 
-instance QC.Arbitrary Collector.CollectedData where
-  arbitrary = liftA3 Collector.CollectedData QC.arbitrary QC.arbitrary QC.arbitrary
+instance (QC.Arbitrary a) => QC.Arbitrary (Timed a) where
+  arbitrary = liftA3 Timed QC.arbitrary QC.arbitrary QC.arbitrary
 
-prop_collector_serialize_unserialize :: [Collector.CollectedData] -> Bool
+prop_collector_serialize_unserialize :: [Timed (OrderBook.Response Double)] -> Bool
 prop_collector_serialize_unserialize xs =
   Collector.unserialize (unlines (map Collector.serialize xs)) == xs
   

@@ -64,6 +64,7 @@ library
                    , FinancialTimeseries.Type.Signal
                    , FinancialTimeseries.Type.Strategy
                    , FinancialTimeseries.Type.Table
+                   , FinancialTimeseries.Type.Timed
                    , FinancialTimeseries.Type.Timeseries
                    , FinancialTimeseries.Type.Types
                    , FinancialTimeseries.Util.DistributivePair

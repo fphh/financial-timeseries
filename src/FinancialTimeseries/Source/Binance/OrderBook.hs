@@ -7,6 +7,8 @@ module FinancialTimeseries.Source.Binance.OrderBook where
 
 import GHC.Generics (Generic)
 
+import Data.Time (UTCTime, getCurrentTime)
+
 import qualified Data.List as List
 import qualified Data.Aeson as Ae
 
@@ -18,6 +20,8 @@ import FinancialTimeseries.Source.Binance.Type.Bid (Bid(..))
 import FinancialTimeseries.Source.Binance.Type.Symbol (Symbol)
 
 import FinancialTimeseries.Type.ByQuantity (ByQuantity(..))
+import FinancialTimeseries.Type.Timed (Timed(..), middle)
+import FinancialTimeseries.Type.Types (ExchangeRate(..))
 
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
@@ -69,7 +73,7 @@ data Response a = Response {
 
 
 
-get :: (Read a, Show a) => Query -> IO (Response a)
+get :: (Read a, Show a) => Query -> IO (Timed (Response a))
 get query = do
   let qstr =
         "symbol=" ++ show (symbol query)
@@ -78,8 +82,11 @@ get query = do
       url = endpoint query
       req = Simple.parseRequest_ (url ++ "?" ++ qstr)
 
+  s <- getCurrentTime
   response <- Simple.httpJSON req
-  return (Simple.getResponseBody response)
+  e <- getCurrentTime
+  
+  return (Timed s e (Simple.getResponseBody response))
 
 
 instance (Show a) => Pretty (Response a) where
@@ -94,7 +101,7 @@ instance (Show a) => Pretty (Response a) where
 
 
 askByQuantity ::
-  (Ord a, Num a, Fractional a) =>
+  (Ord a, Fractional a) =>
   Double -> [ByQuantity (Ask a)] -> ByQuantity (Ask a)
 askByQuantity qty as =
   let go _ [] = []
@@ -106,10 +113,9 @@ askByQuantity qty as =
       qs = go qty as
 
   in ByQuantity (Ask (sum qs / realToFrac qty)) qty
-    
 
 bidByQuantity ::
-  (Ord a, Num a, Fractional a) =>
+  (Ord a, Fractional a) =>
   Double -> [ByQuantity (Bid a)] -> ByQuantity (Bid a)
 bidByQuantity qty as =
   let go _ [] = []
@@ -122,7 +128,29 @@ bidByQuantity qty as =
 
   in ByQuantity (Bid (sum qs / realToFrac qty)) qty
 
-
+exchangeRateByQuantity ::
+  (Ord a, Fractional a) =>
+  Double -> Timed (Response a) -> (UTCTime, ExchangeRate (ByQuantity (Bid a, Ask a)))
+exchangeRateByQuantity qty t =
+  let ByQuantity us _ = bidByQuantity qty (bids (timed t))
+      ByQuantity ws _ = askByQuantity qty (asks (timed t))
+  in (middle t, ExchangeRate (ByQuantity (us, ws) qty))
+  
+{-
+exchangeRateByQuantity ::
+  Double -> Response a -> (UTCTime, (Bid a, Ask a))
+exchangeRateByQuantity qty vs =
+  let f (CollectedData start end (OrderBook.Response _ bs as)) =
+        let t = ((end `diffUTCTime` start) / 2) `addUTCTime` start
+            ByQuantity us _ = OrderBook.bidByQuantity qty bs
+            ByQuantity ws _ = OrderBook.askByQuantity qty as
+        in (t, (us, ws))
+      g x qty = ExchangeRate (ByQuantity x qty)
+  in TimeseriesRaw {
+    name = nam
+    , timeseries = ExchangeRateByQuantity (ExchangeRate (ByQuantity (Vec.map f vs) qty))
+    }
+-}
 
 {-
 
