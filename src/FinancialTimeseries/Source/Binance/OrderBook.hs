@@ -67,6 +67,8 @@ data Response a = Response {
   } deriving (Show, Read, Eq, Generic, Ae.FromJSON)
 
 
+
+
 get :: (Read a, Show a) => Query -> IO (Response a)
 get query = do
   let qstr =
@@ -89,6 +91,36 @@ instance (Show a) => Pretty (Response a) where
     ++ "\nasks (seller price):\n"
     ++ List.intercalate "\n" (map (\(ByQuantity (Ask a) b) -> "\t" ++ show a ++ "\t\t" ++ show b) as)
 
+
+
+askByQuantity ::
+  (Ord a, Num a, Fractional a) =>
+  Double -> [ByQuantity (Ask a)] -> ByQuantity (Ask a)
+askByQuantity qty as =
+  let go _ [] = []
+      go n (ByQuantity (Ask p) q : xs) =
+        case n <= 0 of
+          True -> []
+          False -> p * realToFrac (min q n) : go (n-q) xs
+
+      qs = go qty as
+
+  in ByQuantity (Ask (sum qs / realToFrac qty)) qty
+    
+
+bidByQuantity ::
+  (Ord a, Num a, Fractional a) =>
+  Double -> [ByQuantity (Bid a)] -> ByQuantity (Bid a)
+bidByQuantity qty as =
+  let go _ [] = []
+      go n (ByQuantity (Bid p) q : xs) =
+        case n <= 0 of
+          True -> []
+          False -> p * realToFrac (min q n) : go (n-q) xs
+
+      qs = go qty as
+
+  in ByQuantity (Bid (sum qs / realToFrac qty)) qty
 
 
 

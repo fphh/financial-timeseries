@@ -30,8 +30,8 @@ mkConfig w h = do
     , denv = env
     }
 
-defConfig :: IO Config
-defConfig = mkConfig 1600 400
+defaultConfig :: IO Config
+defaultConfig = mkConfig 1600 400
 
 
 

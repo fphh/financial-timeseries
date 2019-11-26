@@ -27,7 +27,7 @@ import FinancialTimeseries.Type.Types (TimeseriesYield(..), TradeYield(..), Inve
 
 
 
-data OptimizeConfig optParams price a = OptimizeConfig {
+data Config optParams price a = Config {
   strategy :: optParams -> Strategy price a
   , params :: [optParams]
   }
@@ -65,8 +65,8 @@ equalDistribution n pval (Long (TradeYield (Invested vs))) =
 
 optimize ::
   (Distributive price, Profit price, Fractional a, Real a, Floating a) =>
-  OptimizeConfig optParams price a -> TimeseriesRaw price a -> [(optParams, TimeseriesYield a)]
-optimize (OptimizeConfig strgy ps) ts =
+  Config optParams price a -> TimeseriesRaw price a -> [(optParams, TimeseriesYield a)]
+optimize (Config strgy ps) ts =
   let ss = map (\p -> (p, evalStrategy ts (strgy p))) ps
 
       n = 10
@@ -81,3 +81,4 @@ optimize (OptimizeConfig strgy ps) ts =
       
       ds = List.sortBy (compare `on` snd) cs
   in ds
+

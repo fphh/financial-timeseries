@@ -48,6 +48,7 @@ library
                    , FinancialTimeseries.Source.Row
                    , FinancialTimeseries.Statistics.Statistics
                    , FinancialTimeseries.Test
+                   , FinancialTimeseries.Trade.Analysis
                    , FinancialTimeseries.Trade.Account
                    , FinancialTimeseries.Trade.LoggerData
                    , FinancialTimeseries.Trade.Paper.Paper

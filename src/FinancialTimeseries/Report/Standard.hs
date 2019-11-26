@@ -22,7 +22,7 @@ import qualified Statistics.Sample.Histogram as Histo
 import qualified FinancialTimeseries.Algorithm.MonteCarlo as AMC
 import FinancialTimeseries.Algorithm.Evaluate (Profit, long, evaluate, evaluateFraction)
 import FinancialTimeseries.Render.Chart (chart)
-import FinancialTimeseries.Render.HtmlReader (Config, runHtmlReader)
+import qualified FinancialTimeseries.Render.HtmlReader as HtmlReader -- (Config, runHtmlReader)
 import FinancialTimeseries.Render.Render (display)
 import FinancialTimeseries.Render.Statement (statement, currentTime)
 import FinancialTimeseries.Statistics.Statistics (yield, tradeStatistics, stats2cdfChart, stats2list)
@@ -34,16 +34,16 @@ import FinancialTimeseries.Type.MonteCarlo (Broom(..))
 import FinancialTimeseries.Type.Strategy (Strategy(..))
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw, first, slice)
 import qualified FinancialTimeseries.Type.Timeseries as TS
-import FinancialTimeseries.Type.Types (StripPrice, stripPrice, Equity(..), Price(..), partitionInvested)
+import FinancialTimeseries.Type.Types (StripPrice, stripPrice, Equity(..), partitionInvested)
 
 import FinancialTimeseries.Util.DistributivePair (distributePair)
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
 
 
-data ReportConfig params gen price a = ReportConfig {
+data Config params gen price a = Config {
   now :: UTCTime
-  , reportConfig :: Config
+  , reportConfig :: HtmlReader.Config
   , monteCarloConfig :: AMC.Config gen a
   , parameters :: params
   , strategy :: params -> Strategy price a
@@ -51,7 +51,7 @@ data ReportConfig params gen price a = ReportConfig {
 
 report ::
   (Profit price, Distributive price, StripPrice price, Pretty params, R.RandomGen gen, Num a, Fractional a, Real a, E.PlotValue a, Show a, Pretty a, TS.Length (TimeseriesRaw price a)) =>
-  ReportConfig params gen price a -> TimeseriesRaw price a -> H5.Html
+  Config params gen price a -> TimeseriesRaw price a -> H5.Html
 report cfg ts =
   let t = unStrategy (strategy cfg (parameters cfg)) ts
       lg = long (partitionInvested (slice t))
@@ -84,7 +84,7 @@ report cfg ts =
 
       broom = fmap (fmap (fmap (bimap (fmap Broom) (fmap Broom)))) (mteCrlo (Fraction 1.0) evaluate)
       
-      html = runHtmlReader (reportConfig cfg) $ mconcat $
+      html = HtmlReader.runHtmlReader (reportConfig cfg) $ mconcat $
         currentTime (now cfg)
         : statement ("Timeseries is well formed: " ++ show (check_timeseries_prop t))
         : statement ("Parameters: " ++ pretty (parameters cfg))

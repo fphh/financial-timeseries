@@ -122,43 +122,13 @@ collect cfg syms = do
   loop
 
 
-askByQuantity ::
-  (Ord a, Num a, Fractional a) =>
-  Double -> [ByQuantity (Ask a)] -> ByQuantity (Ask a)
-askByQuantity qty as =
-  let go _ [] = []
-      go n (ByQuantity (Ask p) q : xs) =
-        case n <= 0 of
-          True -> []
-          False -> p * realToFrac (min q n) : go (n-q) xs
-
-      qs = go qty as
-
-  in ByQuantity (Ask (sum qs / realToFrac qty)) qty
-    
-
-bidByQuantity ::
-  (Ord a, Num a, Fractional a) =>
-  Double -> [ByQuantity (Bid a)] -> ByQuantity (Bid a)
-bidByQuantity qty as =
-  let go _ [] = []
-      go n (ByQuantity (Bid p) q : xs) =
-        case n <= 0 of
-          True -> []
-          False -> p * realToFrac (min q n) : go (n-q) xs
-
-      qs = go qty as
-
-  in ByQuantity (Bid (sum qs / realToFrac qty)) qty
-
-
 exchangeRateByQuantity ::
   String -> Double -> Vector CollectedData -> TimeseriesRaw ExchangeRateByQuantity (Bid Double, Ask Double)
 exchangeRateByQuantity nam qty vs =
   let f (CollectedData start end (OrderBook.Response _ bs as)) =
         let t = ((end `diffUTCTime` start) / 2) `addUTCTime` start
-            ByQuantity us _ = bidByQuantity qty bs
-            ByQuantity ws _ = askByQuantity qty as
+            ByQuantity us _ = OrderBook.bidByQuantity qty bs
+            ByQuantity ws _ = OrderBook.askByQuantity qty as
         in (t, (us, ws))
       g x qty = ExchangeRate (ByQuantity x qty)
   in TimeseriesRaw {

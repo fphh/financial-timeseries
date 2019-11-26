@@ -27,6 +27,7 @@ import qualified FinancialTimeseries.Algorithm.MovingAverage as MA
 -- FinancialTimeseries.Source.Binance.TickerPrice qualified
 
 import qualified FinancialTimeseries.Source.Binance.Klines as Klines
+import qualified FinancialTimeseries.Source.Binance.OrderBook as OrderBook
 import qualified FinancialTimeseries.Source.Binance.TickerPrice as TickerPrice
 
 import FinancialTimeseries.Source.Binance.Type.BarLength (BarLength, nextTimeSlices)
@@ -53,6 +54,7 @@ data Config params a = Config {
   , usdtSymbol :: Maybe Symbol
   , limit :: Int
   , fraction :: Fraction a
+  , orderBookDepth :: OrderBook.Limit
   , parameters :: params
   , strategy :: params -> Strategy ExchangeRate a
   }
@@ -96,6 +98,7 @@ trader mvar bl cfg = do
 
   putStrLn ("Starting trader for " ++ fileName)
 
+
   let -- empty = TS.TimeseriesRaw (show sym) (Price Vec.empty)
 
       tsReq = (Klines.defaultQuery sym bl) {
@@ -105,6 +108,12 @@ trader mvar bl cfg = do
       refreshAcc = refreshAccount (fraction cfg) ((strategy cfg) (parameters cfg))
       
   Just empty <- Klines.get tsReq
+
+
+
+--  ob <- OrderBook.get (OrderBook.defaultQuery sym (orderBookDepth cfg))
+
+  
 
   let loop us@(acnt, zs) = do
         hm <- takeMVar mvar
