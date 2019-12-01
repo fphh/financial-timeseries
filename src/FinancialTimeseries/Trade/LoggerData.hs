@@ -7,17 +7,21 @@ import Data.Time (UTCTime)
 
 import qualified Data.List as List
 
+import FinancialTimeseries.Source.Binance.Type.Ask (Ask(..))
+import FinancialTimeseries.Source.Binance.Type.Bid (Bid(..))
+
 import FinancialTimeseries.Trade.Account (Account(..))
 import FinancialTimeseries.Type.Types (StripPrice, stripPrice, price)
 
 
 
+
 data LoggerData price a = LoggerData {
   ltime :: UTCTime
-  , lbaseCurrencyUSDT :: Maybe (price a)
+  , bidAndAsk :: price (Bid a, Ask a)
   , lcurrencyPair :: price a
   , laccount :: Account a
-  } deriving (Show, Read)
+  } --  deriving (Show, Read)
 
 notAvailable :: String
 notAvailable = "n/a"
@@ -25,9 +29,15 @@ notAvailable = "n/a"
 logger ::
   (Show a, StripPrice price) =>
   Sys.Handle -> LoggerData price a -> IO ()
-logger hd (LoggerData t bcusdt cp (Account bc qc)) =
-  let bcl = maybe [notAvailable] ((:[]) . show . stripPrice) bcusdt
-      str = List.intercalate "," (show t : bcl ++ [show (stripPrice cp), show bc, show qc])
+logger hd (LoggerData t bidAsk cp (Account bc qc)) =
+  let str = List.intercalate "," $
+        show t
+        : show (unBid (fst (stripPrice bidAsk)))
+        : show (unAsk (snd (stripPrice bidAsk)))
+        : show (stripPrice cp)
+        : show bc
+        : show qc
+        : []
   in Sys.hPutStrLn hd str
 
 -- Fault tollerant parsing ???
@@ -38,13 +48,9 @@ parse file = do
   txt <- readFile file
   let ls = lines txt
   
-      f [t, bcusdt, cp, bc, qc] =
-        let acnt = Account (read bc) (read qc)
-            usdt =
-              case bcusdt of
-                x | x == notAvailable -> Nothing
-                x -> Just (price (read x))
-        in LoggerData (read t) usdt (price (read cp)) acnt
+      f [t, b, a, cp, bc, qc] =
+        let bidAsk = price (Bid (read b), Ask (read a))
+        in LoggerData (read t) bidAsk (price (read cp)) (Account (read bc) (read qc))
       f _ = error "LoggerData.parse: never here"
   
       brk xs =

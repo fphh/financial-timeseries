@@ -8,8 +8,8 @@ import qualified FinancialTimeseries.Type.Timeseries as TS
 
 
 data Signal =
-  Buy
-  | Sell
+  Invest
+  | DisInvest
   | None
   deriving (Show)
 
@@ -27,8 +27,8 @@ lastSignal ms =
       lastIndex = TS.length (TS.timeseriesRaw ms) - 1
 
   in case (k, ls) of
-       (_, Just (HalfSegment j)) | lastIndex == j -> Buy
-       (Just (Segment _ j), _) | lastIndex == j -> Sell
+       (_, Just (HalfSegment j)) | lastIndex == j -> Invest
+       (Just (Segment _ j), _) | lastIndex == j -> DisInvest
        _ -> None
 
 

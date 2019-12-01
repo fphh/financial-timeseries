@@ -30,13 +30,16 @@ import qualified FinancialTimeseries.Source.Binance.Klines as Klines
 import qualified FinancialTimeseries.Source.Binance.OrderBook as OrderBook
 import qualified FinancialTimeseries.Source.Binance.TickerPrice as TickerPrice
 
+import FinancialTimeseries.Source.Binance.Type.Ask (Ask(..))
 import FinancialTimeseries.Source.Binance.Type.BarLength (BarLength, nextTimeSlices)
+import FinancialTimeseries.Source.Binance.Type.Bid (Bid(..))
 
 import qualified FinancialTimeseries.Source.Binance.Type.BarLength as BarLength
 import FinancialTimeseries.Source.Binance.Type.Symbol (Symbol)
 
 import FinancialTimeseries.Trade.Account (Account(..))
 import FinancialTimeseries.Trade.LoggerData (LoggerData(..), logger)
+import FinancialTimeseries.Type.ByQuantity (ByQuantity(..))
 import FinancialTimeseries.Type.Fraction (Fraction(..))
 import FinancialTimeseries.Type.Signal (Signal(..), lastSignal)
 import FinancialTimeseries.Type.Strategy (Strategy(..))
@@ -47,11 +50,12 @@ import qualified FinancialTimeseries.Type.Timeseries as TS
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 import FinancialTimeseries.Util.ToFileString (ToFileString, toFileString)
 
+import Debug.Trace (trace)
+
 
 data Config params a = Config {
   account :: Account a
   , symbol :: Symbol
-  , usdtSymbol :: Maybe Symbol
   , limit :: Int
   , fraction :: Fraction a
   , orderBookDepth :: OrderBook.Limit
@@ -65,20 +69,36 @@ outputDir = "output/"
 
 refreshAccount ::
   (Num a, Fractional a, TS.Length (TS.TimeseriesRaw price a), Functor price, StripPrice price) =>
-  Fraction a -> Strategy price a -> Account a -> TS.TimeseriesRaw price a -> Account a
-refreshAccount (Fraction f) (Strategy stgy) acnt@(Account bc qc) ts =
+  Fraction a
+  -> Strategy price a
+  -> ExchangeRate (Bid a, Ask a)
+  -> Account a
+  -> TS.TimeseriesRaw price a
+  -> Account a
+refreshAccount (Fraction f) (Strategy stgy) bidAsk acnt@(Account bc qc) ts =
   let ms = stgy ts
       signal = lastSignal ms
-      (_, prc) = stripPrice (TS.last ts)
+
+      buy  (ExchangeRate (Bid prc, _)) = Account (bc - f*bc) (qc + f*bc*prc)
+      sell (ExchangeRate (_, Ask prc)) = Account (bc + qc/prc) 0
+
   in case signal of
-       Buy -> Account (bc - f*bc) (qc + f*bc*prc)
-       Sell -> Account (bc + qc/prc) 0
+       -- Invest -> buy bidAsk
+       -- DisInvest -> sell bidAsk
+
+       
+       Invest -> sell bidAsk
+       DisInvest -> buy bidAsk
+              
        None -> acnt
 
 
+--       Buy -> Account (bc - f*bc) (qc + f*bc*prc)
+--       Sell -> Account (bc + qc/prc) 0
+
 trader ::
   (Show a, Read a, Fractional a, ToFileString params) =>
-  MVar (ExchangeRate (UTCTime, HM.HashMap Symbol a)) -> BarLength -> Config params a -> IO ()
+  MVar (ExchangeRate (UTCTime, (Bid a, Ask a))) -> BarLength -> Config params a -> IO ()
 trader mvar bl cfg = do
 
   now <- getCurrentTime
@@ -99,47 +119,37 @@ trader mvar bl cfg = do
   putStrLn ("Starting trader for " ++ fileName)
 
 
-  let -- empty = TS.TimeseriesRaw (show sym) (Price Vec.empty)
 
-      tsReq = (Klines.defaultQuery sym bl) {
-        Klines.limit = Just (limit cfg)
+  let tsReq = (Klines.defaultQuery sym bl) {
+        Klines.limit = Just (limit cfg + 100)
         }
       
       refreshAcc = refreshAccount (fraction cfg) ((strategy cfg) (parameters cfg))
-      
-  Just empty <- Klines.get tsReq
 
+  let loop acnt = do
+        bidAsk <- takeMVar mvar
+        
+        Just as <- Klines.get tsReq
 
-
---  ob <- OrderBook.get (OrderBook.defaultQuery sym (orderBookDepth cfg))
-
-  
-
-  let loop us@(acnt, zs) = do
-        hm <- takeMVar mvar
-
-        let distr (ExchangeRate (Just x)) = Just (ExchangeRate x)
-            distr _ = Nothing
-          
-            prc = distr (fmap (sequence . fmap (HM.lookup sym)) hm)
-            bcurr = distr (fmap (join . flip fmap (usdtSymbol cfg) . flip HM.lookup . snd) hm)
-
-        case fmap (TS.addLast zs) prc of
-          Just as -> do
-            let newAcnt = refreshAcc acnt as
-                bc@(ExchangeRate (t, _)) = TS.last as
-                loggerData = LoggerData {
-                  ltime = t
-                  , lbaseCurrencyUSDT = bcurr                        
-                  , lcurrencyPair = fmap snd bc
-                  , laccount = newAcnt
-                  }
+        let prc = fmap (fmap (\(Bid b, Ask a) -> (a+b)/2)) bidAsk
+        
+            -- as = TS.addLast zs prc    
+            newAcnt = refreshAcc (fmap snd bidAsk) acnt as
             
-            logger hd loggerData
-            loop (newAcnt, as)
-          Nothing -> loop us
+            bc@(ExchangeRate (t, _)) = TS.last as
+            
+            loggerData = LoggerData {
+              ltime = t
+              , bidAndAsk = fmap snd bidAsk
+              , lcurrencyPair = fmap snd bc
+              , laccount = newAcnt
+              }
+              
+        logger hd loggerData
 
-  loop (account cfg, empty)
+        loop (newAcnt) -- , as)
+        
+  loop (account cfg) -- , empty)
 
 
 
@@ -152,30 +162,31 @@ ticker (bl, cfgs) = do
   let g c = do
         mvar <- newEmptyMVar
         void (forkIO (trader mvar bl c))
-        return mvar
+        return (c, mvar)
 
   mvars <- mapM g cfgs
 
-  let f t = do     
+  let f (cfg, mvar) = do
+        let sym = symbol cfg
+            depth = orderBookDepth cfg
+
+        ob <- OrderBook.get (OrderBook.defaultQuery sym depth)
+
+        let bidAsk = fmap (fmap byQuantity) (OrderBook.exchangeRateByQuantity 10 ob)
+        
+        putMVar mvar bidAsk
+
+      fs = map (forkIO . f) mvars
+ 
+      h t = do
         now <- getCurrentTime
         let delta = t `diffUTCTime` now
         threadDelay (round (realToFrac delta * 1000 * 1000))
-
-        ps <- TickerPrice.get TickerPrice.defaultQuery
-
+        sequence_ fs
         xnow <- getCurrentTime
-
-        let msg =
-              "Received ticker for [ "
-              ++ List.intercalate ", " (map (show . symbol) cfgs)
-              ++ " ] at "
-              ++ show xnow
+        putStrLn ("Received ticker for " ++ show (map symbol cfgs) ++ " at " ++ show xnow)
         
-        putStrLn msg
-        
-        mapM_ (flip putMVar ps) mvars
-
-  mapM_ f ts
+  mapM_ h ts
 
 
 start ::

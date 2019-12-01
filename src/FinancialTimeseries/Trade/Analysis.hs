@@ -65,7 +65,10 @@ analyze cfg sym s =  do
 
 optimize ::
   (StripPrice price, Distributive price, Profit price, Pretty a, Real a, Floating a, Show a, Show params) =>
-  Optimize.Config params price a -> Symbol.Symbol -> TimeseriesRaw price a -> IO (params, TimeseriesYield a)
+  Optimize.Config params price a
+  -> Symbol.Symbol
+  -> TimeseriesRaw price a
+  -> IO (params, Optimize.Metrics a)
 optimize cfg sym s = do
   
   repCfg <- HtmlReader.defaultConfig
@@ -74,8 +77,8 @@ optimize cfg sym s = do
 
       table = Table
         "Ranked Optimization Parameters"
-        [CString "Timeseries Yield"]
-        (map (\(w, TimeseriesYield y) -> Labeled (show w) [Cell y]) opts)
+        [CString "Metrics"]
+        (map (\(w, Optimize.Metrics y) -> Labeled (show w) [Cell y]) opts)
 
       best = last opts
       --t :: H5.Html

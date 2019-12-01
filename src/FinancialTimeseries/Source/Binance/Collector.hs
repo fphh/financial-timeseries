@@ -28,7 +28,7 @@ import FinancialTimeseries.Source.Binance.Type.Bid (Bid(..))
 import FinancialTimeseries.Source.Binance.Type.Symbol (Symbol)
 
 import FinancialTimeseries.Type.ByQuantity (ByQuantity(..), ExchangeRateByQuantity(..))
-import FinancialTimeseries.Type.Timed (Timed(..), middle)
+import FinancialTimeseries.Type.Timed (Timed(..))
 
 
 
@@ -121,11 +121,12 @@ collect cfg syms = do
 
   loop
 
+
 exchangeRatesByQuantity ::
   (Ord a, Fractional a) =>
   String -> Double -> Vector (Timed (OrderBook.Response a)) -> TimeseriesRaw ExchangeRateByQuantity (Bid a, Ask a)
 exchangeRatesByQuantity nam qty vs =
-  let f t = fmap (byQuantity . unExchangeRate) (OrderBook.exchangeRateByQuantity qty t)
+  let f = unExchangeRate . fmap (fmap byQuantity) . OrderBook.exchangeRateByQuantity qty
   in TimeseriesRaw {
     name = nam
     , timeseries = ExchangeRateByQuantity (ExchangeRate (ByQuantity (Vec.map f vs) qty))
@@ -136,23 +137,3 @@ readCollectedData ::
   FilePath -> IO (Vector (Timed (OrderBook.Response a)))
 readCollectedData file = readFile file >>= return . Vec.fromList . unserialize
 
-
-
-
-{-
-serialize :: CollectedData -> Text
-serialize (CollectedData start end ob) =
-  let bs = unzip (map (\(Bid p q) -> (p, q)) (OrderBook.bids ob))
-      as = unzip (map (\(Ask p q) -> (p, q)) (OrderBook.asks ob))
-  in Enc.decodeUtf8 (GZip.compress (Enc.encodeUtf16BE (Text.pack (show (start, end, OrderBook.lastUpdateId ob, bs, as)))))
-
-
-
-unserialize :: Text -> [CollectedData]
-unserialize xs =
-  let ws = Text.lines xs
-      zs = map (read . Text.unpack . Enc.decodeUtf16BE . GZip.decompress . Enc.encodeUtf8) ws
-      f (start, end, luID, (bp, bq), (ap, aq)) =
-        CollectedData start end (OrderBook.Response luID (zipWith Bid bp bq) (zipWith Ask ap aq))
-  in map f zs
--}

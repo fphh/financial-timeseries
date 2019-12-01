@@ -23,15 +23,28 @@ import FinancialTimeseries.Statistics.Statistics (tradeStatistics, trMeanYield, 
 import FinancialTimeseries.Type.Long (Long(..))
 import FinancialTimeseries.Type.Strategy (Strategy(..))
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), slice)
-import FinancialTimeseries.Type.Types (TimeseriesYield(..), TradeYield(..), Invested(..), partitionInvested)
+import FinancialTimeseries.Type.Types (TradeYield(..), Invested(..), partitionInvested)
 
 
+newtype Metrics a = Metrics {
+  unMetrics :: a
+  } deriving (Show, Eq, Ord)
 
 data Config optParams price a = Config {
   strategy :: optParams -> Strategy price a
   , params :: [optParams]
+  , metrics :: Vec.Vector a -> Metrics a
   }
 
+
+timeseriesYield :: (Real a, Floating a) => Vec.Vector a -> Metrics a
+timeseriesYield vs =
+  let stats = tradeStatistics vs
+  in Metrics (trMeanYield (moments stats) ** fromIntegral (sampleSize stats))
+
+tradeMeanYield vs =
+  let stats = tradeStatistics vs
+  in Metrics (trMeanYield (moments stats))
 
 evalStrategy ::
   (Distributive price, Profit price, Fractional a) =>
@@ -65,8 +78,8 @@ equalDistribution n pval (Long (TradeYield (Invested vs))) =
 
 optimize ::
   (Distributive price, Profit price, Fractional a, Real a, Floating a) =>
-  Config optParams price a -> TimeseriesRaw price a -> [(optParams, TimeseriesYield a)]
-optimize (Config strgy ps) ts =
+  Config optParams price a -> TimeseriesRaw price a -> [(optParams, Metrics a)]
+optimize (Config strgy ps metr) ts =
   let ss = map (\p -> (p, evalStrategy ts (strgy p))) ps
 
       n = 10
@@ -74,9 +87,7 @@ optimize (Config strgy ps) ts =
 
       bs = filter (equalDistribution n pval . snd) ss
 
-      f (Long (TradeYield (Invested vs))) =
-        let stats = tradeStatistics vs
-        in TimeseriesYield (trMeanYield (moments stats) ** fromIntegral (sampleSize stats))
+      f (Long (TradeYield (Invested vs))) = metr vs
       cs = map (fmap f) bs
       
       ds = List.sortBy (compare `on` snd) cs

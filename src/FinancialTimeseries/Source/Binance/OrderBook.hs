@@ -93,15 +93,15 @@ instance (Show a) => Pretty (Response a) where
   pretty (Response uid bs as) =
     "lastUpdateId:\t" ++ show uid ++ "\n"
     ++ "\tPRICE\t\tQUANTITY\n"
-    ++ "bids (buyer price):\n"
+    ++ "BIDS (buyer willing to buy base currency at):\n"
     ++ List.intercalate "\n" (map (\(ByQuantity (Bid a) b) -> "\t" ++ show a ++ "\t\t" ++ show b) bs)
-    ++ "\nasks (seller price):\n"
+    ++ "\nASKS (seller willing to sell base currency at):\n"
     ++ List.intercalate "\n" (map (\(ByQuantity (Ask a) b) -> "\t" ++ show a ++ "\t\t" ++ show b) as)
 
 
 
 askByQuantity ::
-  (Ord a, Fractional a) =>
+  (Fractional a) =>
   Double -> [ByQuantity (Ask a)] -> ByQuantity (Ask a)
 askByQuantity qty as =
   let go _ [] = []
@@ -115,7 +115,7 @@ askByQuantity qty as =
   in ByQuantity (Ask (sum qs / realToFrac qty)) qty
 
 bidByQuantity ::
-  (Ord a, Fractional a) =>
+  (Fractional a) =>
   Double -> [ByQuantity (Bid a)] -> ByQuantity (Bid a)
 bidByQuantity qty as =
   let go _ [] = []
@@ -129,49 +129,9 @@ bidByQuantity qty as =
   in ByQuantity (Bid (sum qs / realToFrac qty)) qty
 
 exchangeRateByQuantity ::
-  (Ord a, Fractional a) =>
-  Double -> Timed (Response a) -> (UTCTime, ExchangeRate (ByQuantity (Bid a, Ask a)))
+  (Fractional a) =>
+  Double -> Timed (Response a) -> ExchangeRate (UTCTime, ByQuantity (Bid a, Ask a))
 exchangeRateByQuantity qty t =
   let ByQuantity us _ = bidByQuantity qty (bids (timed t))
       ByQuantity ws _ = askByQuantity qty (asks (timed t))
-  in (middle t, ExchangeRate (ByQuantity (us, ws) qty))
-  
-{-
-exchangeRateByQuantity ::
-  Double -> Response a -> (UTCTime, (Bid a, Ask a))
-exchangeRateByQuantity qty vs =
-  let f (CollectedData start end (OrderBook.Response _ bs as)) =
-        let t = ((end `diffUTCTime` start) / 2) `addUTCTime` start
-            ByQuantity us _ = OrderBook.bidByQuantity qty bs
-            ByQuantity ws _ = OrderBook.askByQuantity qty as
-        in (t, (us, ws))
-      g x qty = ExchangeRate (ByQuantity x qty)
-  in TimeseriesRaw {
-    name = nam
-    , timeseries = ExchangeRateByQuantity (ExchangeRate (ByQuantity (Vec.map f vs) qty))
-    }
--}
-
-{-
-
-truncAskOrderList :: (Ord a, Num a) => Double -> [Ask a] -> (a, a)
-truncAskOrderList qty as =
-  let suM = List.foldr (\(Ask p q) acc -> acc+q) 0
-  
-      go _ [] = []
-      go n (Ask p q : xs) =
-        case n <= 0 of
-          True -> []
-          False -> Ask p (min q n) : go (n-q) xs
-
-      qs = go qty as
-
-      f (Ask p q) = q * p
-
-  in (suM qs, sum (map f qs))
-    
-
-askMarketPrice :: (Ord a, Fractional a) => Double -> [Ask a] -> a
-askMarketPrice qty = (\(x, y) -> y/x) . truncAskOrderList qty
-
--}
+  in ExchangeRate (middle t, ByQuantity (us, ws) qty)
