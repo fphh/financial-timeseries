@@ -3,9 +3,10 @@
 
 module FinancialTimeseries.Trade.Paper.Paper where
 
+import qualified System.Directory as Dir
 import qualified System.IO as Sys
 
-import Control.Concurrent (forkIO, threadDelay)
+import Control.Concurrent (forkIO, forkFinally, threadDelay)
 import Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, takeMVar)
 
 import Control.Applicative (liftA2)
@@ -54,7 +55,8 @@ import Debug.Trace (trace)
 
 
 data Config params a = Config {
-  account :: Account a
+  outputDirPrefix :: String
+  , account :: Account a
   , symbol :: Symbol
   , limit :: Int
   , fraction :: Fraction a
@@ -65,7 +67,7 @@ data Config params a = Config {
 
 
 outputDir :: String
-outputDir = "output/"
+outputDir = "output"
 
 refreshAccount ::
   (Num a, Fractional a, TS.Length (TS.TimeseriesRaw price a), Functor price, StripPrice price) =>
@@ -96,27 +98,52 @@ refreshAccount (Fraction f) (Strategy stgy) bidAsk acnt@(Account bc qc) ts =
 --       Buy -> Account (bc - f*bc) (qc + f*bc*prc)
 --       Sell -> Account (bc + qc/prc) 0
 
+type Message a = Either () (ExchangeRate (UTCTime, (Bid a, Ask a)))
+
+{-
 trader ::
-  (Show a, Read a, Fractional a, ToFileString params) =>
+  (Show a, Read a, Fractional a, ToFileString params, Show params) =>
   MVar (ExchangeRate (UTCTime, (Bid a, Ask a))) -> BarLength -> Config params a -> IO ()
+-}
+
+trader ::
+  (Show a, Read a, Fractional a, ToFileString params, Show params) =>
+  MVar (Message a) -> BarLength -> Config params a -> IO FilePath
+
 trader mvar bl cfg = do
 
   now <- getCurrentTime
+
+  let dirs =
+        outputDir
+        ++ "/" ++ outputDirPrefix cfg
+        ++ "-"
+        ++ formatTime defaultTimeLocale (iso8601DateFormat (Just "%X%Z")) now
+
+  Dir.createDirectoryIfMissing True dirs
   
   let sym = symbol cfg
 
-      fileName =
-        outputDir
-        ++ show sym
+      fileNameCsv =
+        dirs
+        ++ "/" ++ show sym
         ++ "-" ++ toFileString bl
         ++ "-" ++ toFileString (parameters cfg)
-        ++ "-" ++ formatTime defaultTimeLocale (iso8601DateFormat (Just "%X%Z")) now
         ++ ".csv"
+        
+      fileNameParams =
+        dirs
+        ++ "/" ++ show sym
+        ++ "-" ++ toFileString bl
+        ++ "-" ++ toFileString (parameters cfg)
+        ++ ".params"
 
-  hd <- Sys.openFile fileName Sys.WriteMode
+  writeFile fileNameParams (show (bl, parameters cfg))
+  
+  hd <- Sys.openFile fileNameCsv Sys.WriteMode
   Sys.hSetBuffering hd Sys.LineBuffering
 
-  putStrLn ("Starting trader for " ++ fileName)
+  putStrLn ("Starting trader for " ++ fileNameCsv)
 
 
 
@@ -126,14 +153,12 @@ trader mvar bl cfg = do
       
       refreshAcc = refreshAccount (fraction cfg) ((strategy cfg) (parameters cfg))
 
-  let loop acnt = do
-        bidAsk <- takeMVar mvar
+      newData acnt bidAsk = do
         
         Just as <- Klines.get tsReq
 
         let prc = fmap (fmap (\(Bid b, Ask a) -> (a+b)/2)) bidAsk
         
-            -- as = TS.addLast zs prc    
             newAcnt = refreshAcc (fmap snd bidAsk) acnt as
             
             bc@(ExchangeRate (t, _)) = TS.last as
@@ -147,24 +172,30 @@ trader mvar bl cfg = do
               
         logger hd loggerData
 
-        loop (newAcnt) -- , as)
+        loop newAcnt
+
+      end = const (return fileNameCsv)
+  
+      loop acnt = takeMVar mvar >>= either end (newData acnt)
+
         
-  loop (account cfg) -- , empty)
+  loop (account cfg)
 
 
 
 ticker ::
-  (Show a, Read a, Fractional a, ToFileString params) =>
-  (BarLength, [Config params a]) -> IO ()
-ticker (bl, cfgs) = do
+  (Show a, Read a, Fractional a, ToFileString params, Show params) =>
+  (BarLength, [(Config params a,  MVar (Message a))]) -> IO ()
+ticker (bl, mcfgs) = do
   ts <- nextTimeSlices bl
 
-  let g c = do
-        mvar <- newEmptyMVar
-        void (forkIO (trader mvar bl c))
-        return (c, mvar)
+  let finally mvar filePath = do
+        print filePath
+        putMVar mvar (Left ())
+        
+      g (c, mvar) = void (forkFinally (trader mvar bl c) (finally mvar))
 
-  mvars <- mapM g cfgs
+  mapM g mcfgs
 
   let f (cfg, mvar) = do
         let sym = symbol cfg
@@ -174,9 +205,9 @@ ticker (bl, cfgs) = do
 
         let bidAsk = fmap (fmap byQuantity) (OrderBook.exchangeRateByQuantity 10 ob)
         
-        putMVar mvar bidAsk
+        putMVar mvar (Right bidAsk)
 
-      fs = map (forkIO . f) mvars
+      fs = map (forkIO . f) mcfgs
  
       h t = do
         now <- getCurrentTime
@@ -184,16 +215,50 @@ ticker (bl, cfgs) = do
         threadDelay (round (realToFrac delta * 1000 * 1000))
         sequence_ fs
         xnow <- getCurrentTime
-        putStrLn ("Received ticker for " ++ show (map symbol cfgs) ++ " at " ++ show xnow)
+        putStrLn ("Received ticker for " ++ show (map (symbol . fst) mcfgs) ++ " at " ++ show xnow)
         
   mapM_ h ts
 
+  
+wait16hours :: IO ()
+wait16hours = threadDelay (1000*1000*60*60*16)
 
+wait1minute :: IO ()
+wait1minute = threadDelay (1000*1000*60*3)
+
+addMVars :: [(BarLength, [Config params a])] -> IO [(BarLength, [(Config params a, MVar (Message a))])]
+addMVars xs = do
+  let g x = sequence (x, newEmptyMVar)
+  mapM (sequence . fmap (mapM g)) xs
+
+
+sendEnd :: [(BarLength, [(Config params a, MVar (Message a))])] -> IO ()
+sendEnd xs = do
+  let g (_, mvar) = do
+        putMVar mvar (Left ())
+        void (takeMVar mvar)
+        
+  mapM_ (sequence . fmap (mapM g)) xs  
+  
+{-
 start ::
-  (Show a, Read a, Fractional a, ToFileString params) =>
+  (Show a, Read a, Fractional a, ToFileString params, Show params) =>
   [(BarLength, [Config params a])] -> IO ()
 start xs = do
   let io = mapM_ (forkIO . ticker) xs
   io
-  -- threadDelay (60*1000*1000*1000)
   threadDelay (1000*1000*60*60*16) -- 16 hours
+-}
+
+start ::
+  (Show a, Read a, Fractional a, ToFileString params, Show params) =>
+  [(BarLength, [Config params a])] -> IO ()
+start xs = do
+  cs <- addMVars xs
+  mapM_ (forkIO . ticker) cs
+  -- wait16hours
+  wait1minute
+  sendEnd cs
+  
+  -- threadDelay (1000*1000*60*60*16) -- 16 hours
+  -- threadDelay (1000*1000*60) -- 16 hours
