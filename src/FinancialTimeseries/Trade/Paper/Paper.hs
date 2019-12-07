@@ -9,33 +9,16 @@ import qualified System.IO as Sys
 import Control.Concurrent (forkIO, forkFinally, threadDelay)
 import Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, takeMVar)
 
-import Control.Applicative (liftA2)
+import Control.Monad (void)
 
-import Control.Monad (void, join, foldM_)
-
-import Data.Time (UTCTime, getCurrentTime, diffUTCTime, addUTCTime, formatTime, defaultTimeLocale, iso8601DateFormat)
-
-import qualified Data.Vector as Vec
-
-import qualified Data.HashMap.Strict as HM
-
-import qualified Data.List as List
-
-import qualified FinancialTimeseries.Algorithm.MovingAverage as MA
-
--- import qualified FinancialTimeseries.Source.Binance.Binance as Binance
-
--- FinancialTimeseries.Source.Binance.TickerPrice qualified
+import Data.Time (UTCTime, getCurrentTime, diffUTCTime, formatTime, defaultTimeLocale, iso8601DateFormat)
 
 import qualified FinancialTimeseries.Source.Binance.Klines as Klines
 import qualified FinancialTimeseries.Source.Binance.OrderBook as OrderBook
-import qualified FinancialTimeseries.Source.Binance.TickerPrice as TickerPrice
 
 import FinancialTimeseries.Source.Binance.Type.Ask (Ask(..))
 import FinancialTimeseries.Source.Binance.Type.BarLength (BarLength, nextTimeSlices)
 import FinancialTimeseries.Source.Binance.Type.Bid (Bid(..))
-
-import qualified FinancialTimeseries.Source.Binance.Type.BarLength as BarLength
 import FinancialTimeseries.Source.Binance.Type.Symbol (Symbol)
 
 import FinancialTimeseries.Trade.Account (Account(..))
@@ -44,14 +27,11 @@ import FinancialTimeseries.Type.ByQuantity (ByQuantity(..))
 import FinancialTimeseries.Type.Fraction (Fraction(..))
 import FinancialTimeseries.Type.Signal (Signal(..), lastSignal)
 import FinancialTimeseries.Type.Strategy (Strategy(..))
-import FinancialTimeseries.Type.Types (StripPrice, stripPrice, ExchangeRate(..))
+import FinancialTimeseries.Type.Types (StripPrice, ExchangeRate(..))
 import qualified FinancialTimeseries.Type.Timeseries as TS
 
-
-import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 import FinancialTimeseries.Util.ToFileString (ToFileString, toFileString)
 
-import Debug.Trace (trace)
 
 
 data Config params a = Config {
@@ -61,8 +41,7 @@ data Config params a = Config {
   , limit :: Int
   , fraction :: Fraction a
   , orderBookDepth :: OrderBook.Limit
-  , parameters :: params
-  , strategy :: params -> Strategy ExchangeRate a
+  , strategy :: Strategy params ExchangeRate a
   }
 
 
@@ -72,13 +51,13 @@ outputDir = "output"
 refreshAccount ::
   (Num a, Fractional a, TS.Length (TS.TimeseriesRaw price a), Functor price, StripPrice price) =>
   Fraction a
-  -> Strategy price a
+  -> Strategy optParams price a
   -> ExchangeRate (Bid a, Ask a)
   -> Account a
   -> TS.TimeseriesRaw price a
   -> Account a
-refreshAccount (Fraction f) (Strategy stgy) bidAsk acnt@(Account bc qc) ts =
-  let ms = stgy ts
+refreshAccount (Fraction f) (Strategy _ ps stgy) bidAsk acnt@(Account bc qc) ts =
+  let ms = stgy ps ts
       signal = lastSignal ms
 
       buy  (ExchangeRate (Bid prc, _)) = Account (bc - f*bc) (qc + f*bc*prc)
@@ -100,16 +79,10 @@ refreshAccount (Fraction f) (Strategy stgy) bidAsk acnt@(Account bc qc) ts =
 
 type Message a = Either () (ExchangeRate (UTCTime, (Bid a, Ask a)))
 
-{-
-trader ::
-  (Show a, Read a, Fractional a, ToFileString params, Show params) =>
-  MVar (ExchangeRate (UTCTime, (Bid a, Ask a))) -> BarLength -> Config params a -> IO ()
--}
 
 trader ::
   (Show a, Read a, Fractional a, ToFileString params, Show params) =>
   MVar (Message a) -> BarLength -> Config params a -> IO FilePath
-
 trader mvar bl cfg = do
 
   now <- getCurrentTime
@@ -128,17 +101,17 @@ trader mvar bl cfg = do
         dirs
         ++ "/" ++ show sym
         ++ "-" ++ toFileString bl
-        ++ "-" ++ toFileString (parameters cfg)
+        ++ "-" ++ toFileString (strategy cfg)
         ++ ".csv"
         
       fileNameParams =
         dirs
         ++ "/" ++ show sym
         ++ "-" ++ toFileString bl
-        ++ "-" ++ toFileString (parameters cfg)
+        ++ "-" ++ toFileString (strategy cfg)
         ++ ".params"
 
-  writeFile fileNameParams (show (bl, parameters cfg))
+  writeFile fileNameParams (show (name (strategy cfg), bl, parameters (strategy cfg)))
   
   hd <- Sys.openFile fileNameCsv Sys.WriteMode
   Sys.hSetBuffering hd Sys.LineBuffering
@@ -151,13 +124,13 @@ trader mvar bl cfg = do
         Klines.limit = Just (limit cfg + 100)
         }
       
-      refreshAcc = refreshAccount (fraction cfg) ((strategy cfg) (parameters cfg))
+      refreshAcc = refreshAccount (fraction cfg) (strategy cfg)
 
       newData acnt bidAsk = do
         
         Just as <- Klines.get tsReq
 
-        let prc = fmap (fmap (\(Bid b, Ask a) -> (a+b)/2)) bidAsk
+        let -- prc = fmap (fmap (\(Bid b, Ask a) -> (a+b)/2)) bidAsk
         
             newAcnt = refreshAcc (fmap snd bidAsk) acnt as
             
@@ -195,7 +168,7 @@ ticker (bl, mcfgs) = do
         
       g (c, mvar) = void (forkFinally (trader mvar bl c) (finally mvar))
 
-  mapM g mcfgs
+  mapM_ g mcfgs
 
   let f (cfg, mvar) = do
         let sym = symbol cfg
@@ -212,7 +185,7 @@ ticker (bl, mcfgs) = do
       h t = do
         now <- getCurrentTime
         let delta = t `diffUTCTime` now
-        threadDelay (round (realToFrac delta * 1000 * 1000))
+        threadDelay (round (realToFrac delta * 1000 * 1000 :: Double))
         sequence_ fs
         xnow <- getCurrentTime
         putStrLn ("Received ticker for " ++ show (map (symbol . fst) mcfgs) ++ " at " ++ show xnow)
@@ -239,16 +212,7 @@ sendEnd xs = do
         void (takeMVar mvar)
         
   mapM_ (sequence . fmap (mapM g)) xs  
-  
-{-
-start ::
-  (Show a, Read a, Fractional a, ToFileString params, Show params) =>
-  [(BarLength, [Config params a])] -> IO ()
-start xs = do
-  let io = mapM_ (forkIO . ticker) xs
-  io
-  threadDelay (1000*1000*60*60*16) -- 16 hours
--}
+
 
 start ::
   (Show a, Read a, Fractional a, ToFileString params, Show params) =>

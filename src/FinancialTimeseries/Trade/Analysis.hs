@@ -35,8 +35,7 @@ import FinancialTimeseries.Util.Pretty (Pretty)
 
 data Config params price a = Config {
   fractions :: [Fraction a]
-  , strategy :: params -> Strategy price a
-  , parameters :: params
+  , strategy :: Strategy params price a
   }
 
 
@@ -53,7 +52,6 @@ analyze cfg sym s =  do
         Standard.now = now
         , Standard.reportConfig = repCfg
         , Standard.monteCarloConfig = mcCfg
-        , Standard.parameters = parameters cfg
         , Standard.strategy = strategy cfg
         }
 

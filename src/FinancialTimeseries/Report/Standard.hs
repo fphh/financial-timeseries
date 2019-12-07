@@ -45,15 +45,14 @@ data Config params gen price a = Config {
   now :: UTCTime
   , reportConfig :: HtmlReader.Config
   , monteCarloConfig :: AMC.Config gen a
-  , parameters :: params
-  , strategy :: params -> Strategy price a
+  , strategy :: Strategy params price a
   }
 
 report ::
   (Profit price, Distributive price, StripPrice price, Pretty params, R.RandomGen gen, Num a, Fractional a, Real a, E.PlotValue a, Show a, Pretty a, TS.Length (TimeseriesRaw price a)) =>
   Config params gen price a -> TimeseriesRaw price a -> H5.Html
 report cfg ts =
-  let t = unStrategy (strategy cfg (parameters cfg)) ts
+  let t = (freeStrategy (strategy cfg)) (parameters (strategy cfg)) ts
       lg = long (partitionInvested (slice t))
 
       mteCrlo = AMC.mc (monteCarloConfig cfg) lg
@@ -74,7 +73,7 @@ report cfg ts =
 
       histogram =
         let histo zs =
-              let n = round (fromIntegral (Vec.length zs) / fromIntegral 5)
+              let n = round (fromIntegral (Vec.length zs) / fromIntegral (5 :: Integer) :: Double)
               in Histogram (Histo.histogram n (Vec.map realToFrac zs) :: (Vector Double, Vector Int))
         in fmap (fmap (fmap histo . snd)) yields
 
@@ -87,7 +86,7 @@ report cfg ts =
       html = HtmlReader.runHtmlReader (reportConfig cfg) $ mconcat $
         currentTime (now cfg)
         : statement ("Timeseries is well formed: " ++ show (check_timeseries_prop t))
-        : statement ("Parameters: " ++ pretty (parameters cfg))
+        : statement ("Parameters: " ++ pretty (parameters (strategy cfg)))
         : display tsCharts
         : display tradeYields
         : display histogram
