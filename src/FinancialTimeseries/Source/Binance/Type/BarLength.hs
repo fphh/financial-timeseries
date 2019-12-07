@@ -17,7 +17,7 @@ data BarLength =
   | Day Integer
   | Week Integer
   | Month Integer
-  deriving (Show, Eq)
+  deriving (Show, Read, Eq)
 
 instance Pretty BarLength where
   pretty bl =

@@ -8,6 +8,7 @@ import qualified Statistics.Sample as Sample
 
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Segment (Segment(..), HalfSegment(..))
+import FinancialTimeseries.Type.Strategy (Strategy(..))
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), Timeseries(..))
 import FinancialTimeseries.Type.Types (StripPrice, stripPrice)
 
@@ -50,14 +51,6 @@ movingAverage (Window m) ts@(TimeseriesRaw _ pvs) =
         
       xs = Vec.ifoldr' f [] (Vec.zip us (Vec.tail us))
 
-  {-
-      g [] = (Nothing, [])
-      g [Up i] = (Just (HalfSegment i), [])
-      g (Up i:Down j:zs) = fmap (Segment i j :) (g zs)
-      g (Down _:zs) = g zs
-      g (Up _:zs) = g zs
-      -}
-      
       g [] = (Nothing, [])
       g [Down i] = (Just (HalfSegment i), [])
       g (Down i:Up j:zs) = fmap (Segment i j :) (g zs)
@@ -75,3 +68,9 @@ movingAverage (Window m) ts@(TimeseriesRaw _ pvs) =
         , additionalSeries = [Labeled "Moving Average" (Vec.map h us)]
         }
   in res
+
+
+movingAverageStrategy ::
+  (StripPrice price, Real a, Fractional a) =>
+  Window -> Strategy Window price a
+movingAverageStrategy w = Strategy "MovingAverage" w movingAverage

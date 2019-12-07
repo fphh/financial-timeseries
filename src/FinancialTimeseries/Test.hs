@@ -372,7 +372,7 @@ check = QC.quickCheck . QC.withMaxSuccess 10000
 
 test :: IO ()
 test = do
-{-
+
   check prop_segment_length_non_zero
   check prop_segment_last_idx
   check prop_segment_all_less
@@ -395,5 +395,5 @@ test = do
 
   -- check prop_montecarlo_peak_drawdown
   -- check prop_montecarlo_mean_profit
--}
+
   check prop_collector_serialize_unserialize
