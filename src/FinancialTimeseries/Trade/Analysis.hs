@@ -22,6 +22,7 @@ import FinancialTimeseries.Render.Render (display)
 
 import qualified FinancialTimeseries.Report.Standard as Standard
 
+import qualified FinancialTimeseries.Source.Binance.Type.BarLength as BarLength
 import qualified FinancialTimeseries.Source.Binance.Type.Symbol as Symbol
 
 import FinancialTimeseries.Type.Fraction (Fraction(..))
@@ -32,15 +33,19 @@ import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), Length)
 import FinancialTimeseries.Type.Types (StripPrice, TimeseriesYield(..), ExchangeRate, Equity(..))
 
 import FinancialTimeseries.Util.Pretty (Pretty)
+import FinancialTimeseries.Util.ToFileString (ToFileString, toFileString)
+
 
 data Config params price a = Config {
-  fractions :: [Fraction a]
+  outputDirectory :: FilePath
+  , barLength :: BarLength.BarLength
+  , fractions :: [Fraction a]
   , strategy :: Strategy params price a
   }
 
 
 analyze ::
-  (Length (TimeseriesRaw price a), Profit price, Distributive price, StripPrice price, Show a, Pretty a, Num a, Fractional a, Real a, E.PlotValue a, Pretty params) =>
+  (Length (TimeseriesRaw price a), Profit price, Distributive price, StripPrice price, Show a, Pretty a, Num a, Fractional a, Real a, E.PlotValue a, Pretty params, ToFileString params) =>
   Config params price a -> Symbol.Symbol -> TimeseriesRaw price a -> IO ()
 analyze cfg sym s =  do
 
@@ -58,7 +63,15 @@ analyze cfg sym s =  do
       html = Standard.report config s
 
       str = Pretty.renderHtml (Document.render html)
-  writeFile ("output/optimize-" ++ show sym ++ ".html") str
+
+      fileName = 
+        outputDirectory cfg
+        ++ "/" ++ show sym
+        ++ "-" ++ toFileString (barLength cfg)
+        ++ "-" ++ toFileString (strategy cfg)
+        ++ "-historic.html"
+
+  writeFile fileName str
 
 
 optimize ::
@@ -82,6 +95,6 @@ optimize cfg sym s = do
       --t :: H5.Html
       t = HtmlReader.runHtmlReader repCfg (display [table])
 
-  writeFile ("output/parameters-" ++ show sym ++ ".html") (Pretty.renderHtml (Document.render t))
+  writeFile (Optimize.outputDirectory cfg ++ "/" ++ show sym ++ "-optimize.html") (Pretty.renderHtml (Document.render t))
   return best
 

@@ -3,7 +3,6 @@
 
 module FinancialTimeseries.Trade.Paper.Paper where
 
-import qualified System.Directory as Dir
 import qualified System.IO as Sys
 
 import Control.Concurrent (forkIO, forkFinally, threadDelay)
@@ -35,7 +34,7 @@ import FinancialTimeseries.Util.ToFileString (ToFileString, toFileString)
 
 
 data Config params a = Config {
-  outputDirPrefix :: String
+  outputDirectory :: FilePath
   , account :: Account a
   , symbol :: Symbol
   , limit :: Int
@@ -43,10 +42,6 @@ data Config params a = Config {
   , orderBookDepth :: OrderBook.Limit
   , strategy :: Strategy params ExchangeRate a
   }
-
-
-outputDir :: String
-outputDir = "output"
 
 refreshAccount ::
   (Num a, Fractional a, TS.Length (TS.TimeseriesRaw price a), Functor price, StripPrice price) =>
@@ -85,31 +80,16 @@ trader ::
   MVar (Message a) -> BarLength -> Config params a -> IO FilePath
 trader mvar bl cfg = do
 
-  now <- getCurrentTime
-
-  let dirs =
-        outputDir
-        ++ "/" ++ outputDirPrefix cfg
-        ++ "-"
-        ++ formatTime defaultTimeLocale (iso8601DateFormat (Just "%X%Z")) now
-
-  Dir.createDirectoryIfMissing True dirs
-  
   let sym = symbol cfg
 
-      fileNameCsv =
-        dirs
+      fileNamePrefix = 
+        outputDirectory cfg
         ++ "/" ++ show sym
         ++ "-" ++ toFileString bl
         ++ "-" ++ toFileString (strategy cfg)
-        ++ ".csv"
         
-      fileNameParams =
-        dirs
-        ++ "/" ++ show sym
-        ++ "-" ++ toFileString bl
-        ++ "-" ++ toFileString (strategy cfg)
-        ++ ".params"
+      fileNameCsv = fileNamePrefix ++ ".csv"
+      fileNameParams = fileNamePrefix ++ ".params"
 
   writeFile fileNameParams (show (name (strategy cfg), bl, parameters (strategy cfg)))
   
@@ -196,8 +176,12 @@ ticker (bl, mcfgs) = do
 wait16hours :: IO ()
 wait16hours = threadDelay (1000*1000*60*60*16)
 
+waitNminute :: Int -> IO ()
+waitNminute n = threadDelay (1000*1000*60*n)
+
 wait1minute :: IO ()
-wait1minute = threadDelay (1000*1000*60*3)
+wait1minute = waitNminute 1
+
 
 addMVars :: [(BarLength, [Config params a])] -> IO [(BarLength, [(Config params a, MVar (Message a))])]
 addMVars xs = do
@@ -221,7 +205,7 @@ start xs = do
   cs <- addMVars xs
   mapM_ (forkIO . ticker) cs
   -- wait16hours
-  wait1minute
+  waitNminute (4*60)
   sendEnd cs
   
   -- threadDelay (1000*1000*60*60*16) -- 16 hours
