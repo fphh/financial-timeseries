@@ -8,7 +8,9 @@ import qualified System.IO as Sys
 import Control.Concurrent (forkIO, forkFinally, threadDelay)
 import Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, takeMVar)
 
-import Control.Monad (void)
+import Control.Monad (void, join, liftM, liftM2)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.Reader (ReaderT, ask)
 
 import Data.Time (UTCTime, getCurrentTime, diffUTCTime, formatTime, defaultTimeLocale, iso8601DateFormat)
 
@@ -22,6 +24,8 @@ import FinancialTimeseries.Source.Binance.Type.Symbol (Symbol)
 
 import FinancialTimeseries.Trade.Account (Account(..))
 import FinancialTimeseries.Trade.LoggerData (LoggerData(..), logger)
+import FinancialTimeseries.Trade.TradeReaderIO (TradeReaderIO, runTradeReaderIO, fileNamePrefix)
+import qualified FinancialTimeseries.Trade.TradeReaderIO as TRIO
 import FinancialTimeseries.Type.ByQuantity (ByQuantity(..))
 import FinancialTimeseries.Type.Fraction (Fraction(..))
 import FinancialTimeseries.Type.Signal (Signal(..), lastSignal)
@@ -34,8 +38,7 @@ import FinancialTimeseries.Util.ToFileString (ToFileString, toFileString)
 
 
 data Config params a = Config {
-  outputDirectory :: FilePath
-  , account :: Account a
+  account :: Account a
   , symbol :: Symbol
   , limit :: Int
   , fraction :: Fraction a
@@ -72,14 +75,19 @@ refreshAccount (Fraction f) (Strategy _ ps stgy) bidAsk acnt@(Account bc qc) ts 
 --       Buy -> Account (bc - f*bc) (qc + f*bc*prc)
 --       Sell -> Account (bc + qc/prc) 0
 
+
 type Message a = Either () (ExchangeRate (UTCTime, (Bid a, Ask a)))
 
 
 trader ::
   (Show a, Read a, Fractional a, ToFileString params, Show params) =>
-  MVar (Message a) -> BarLength -> Config params a -> IO FilePath
+  MVar (Message a) -> BarLength -> Config params a -> TradeReaderIO FilePath
 trader mvar bl cfg = do
+  let sym = symbol cfg
 
+  filePref <- fileNamePrefix sym bl (strategy cfg)
+  
+  {-
   let sym = symbol cfg
 
       fileNamePrefix = 
@@ -87,70 +95,76 @@ trader mvar bl cfg = do
         ++ "/" ++ show sym
         ++ "-" ++ toFileString bl
         ++ "-" ++ toFileString (strategy cfg)
-        
-      fileNameCsv = fileNamePrefix ++ ".csv"
-      fileNameParams = fileNamePrefix ++ ".params"
+-}
+  let fileNameCsv = filePref ++ ".csv"
+      fileNameParams = filePref ++ ".params"
 
-  writeFile fileNameParams (show (name (strategy cfg), bl, parameters (strategy cfg)))
-  
-  hd <- Sys.openFile fileNameCsv Sys.WriteMode
-  Sys.hSetBuffering hd Sys.LineBuffering
+  liftIO $ do
 
-  putStrLn ("Starting trader for " ++ fileNameCsv)
+    writeFile fileNameParams (show (name (strategy cfg), bl, parameters (strategy cfg)))
+    hd <- Sys.openFile fileNameCsv Sys.WriteMode
+    Sys.hSetBuffering hd Sys.LineBuffering
+    
+    putStrLn ("Starting trader for " ++ fileNameCsv)
 
 
 
-  let tsReq = (Klines.defaultQuery sym bl) {
-        Klines.limit = Just (limit cfg + 100)
-        }
+
+    let tsReq = (Klines.defaultQuery sym bl) {
+          Klines.limit = Just (limit cfg + 100)
+          }
       
-      refreshAcc = refreshAccount (fraction cfg) (strategy cfg)
+        refreshAcc = refreshAccount (fraction cfg) (strategy cfg)
 
-      newData acnt bidAsk = do
+        newData acnt bidAsk = do
         
-        Just as <- Klines.get tsReq
+          Just as <- Klines.get tsReq
 
-        let -- prc = fmap (fmap (\(Bid b, Ask a) -> (a+b)/2)) bidAsk
+          let -- prc = fmap (fmap (\(Bid b, Ask a) -> (a+b)/2)) bidAsk
         
-            newAcnt = refreshAcc (fmap snd bidAsk) acnt as
+              newAcnt = refreshAcc (fmap snd bidAsk) acnt as
             
-            bc@(ExchangeRate (t, _)) = TS.last as
+              bc@(ExchangeRate (t, _)) = TS.last as
             
-            loggerData = LoggerData {
-              ltime = t
-              , bidAndAsk = fmap snd bidAsk
-              , lcurrencyPair = fmap snd bc
-              , laccount = newAcnt
-              }
+              loggerData = LoggerData {
+                ltime = t
+                , bidAndAsk = fmap snd bidAsk
+                , lcurrencyPair = fmap snd bc
+                , laccount = newAcnt
+                }
               
-        logger hd loggerData
+          logger hd loggerData
 
-        loop newAcnt
+          loop newAcnt
 
-      end = const (return fileNameCsv)
-  
-      loop acnt = takeMVar mvar >>= either end (newData acnt)
+        end = const (return fileNameCsv)
+
+        loop acnt = takeMVar mvar >>= either end (newData acnt)
 
         
-  loop (account cfg)
+    loop (account cfg)
 
 
 
 ticker ::
   (Show a, Read a, Fractional a, ToFileString params, Show params) =>
-  (BarLength, [(Config params a,  MVar (Message a))]) -> IO ()
+  (BarLength, [(Config params a,  MVar (Message a))]) -> TradeReaderIO ()
+-- ticker = undefined
+
 ticker (bl, mcfgs) = do
-  ts <- nextTimeSlices bl
+  ts <- liftIO (nextTimeSlices bl)
+
+  cfg <- ask
 
   let finally mvar filePath = do
         print filePath
         putMVar mvar (Left ())
-        
-      g (c, mvar) = void (forkFinally (trader mvar bl c) (finally mvar))
 
-  mapM_ g mcfgs
+      g (c, mvar) = void (forkFinally (runTradeReaderIO cfg (trader mvar bl c)) (finally mvar))
 
-  let f (cfg, mvar) = do
+  mapM_ (liftIO . g) mcfgs
+
+  let f (cfg, mvar) = liftIO $ do
         let sym = symbol cfg
             depth = orderBookDepth cfg
 
@@ -162,7 +176,7 @@ ticker (bl, mcfgs) = do
 
       fs = map (forkIO . f) mcfgs
  
-      h t = do
+      h t = liftIO $ do
         now <- getCurrentTime
         let delta = t `diffUTCTime` now
         threadDelay (round (realToFrac delta * 1000 * 1000 :: Double))
@@ -172,25 +186,28 @@ ticker (bl, mcfgs) = do
         
   mapM_ h ts
 
+
   
 wait16hours :: IO ()
 wait16hours = threadDelay (1000*1000*60*60*16)
 
-waitNminute :: Int -> IO ()
-waitNminute n = threadDelay (1000*1000*60*n)
+waitNminute :: Int -> TradeReaderIO ()
+waitNminute n = liftIO (threadDelay (1000*1000*60*n))
 
-wait1minute :: IO ()
+wait1minute :: TradeReaderIO ()
 wait1minute = waitNminute 1
 
 
-addMVars :: [(BarLength, [Config params a])] -> IO [(BarLength, [(Config params a, MVar (Message a))])]
-addMVars xs = do
+addMVars ::
+  [(BarLength, [Config params a])]
+  -> TradeReaderIO [(BarLength, [(Config params a, MVar (Message a))])]
+addMVars xs = liftIO $ do
   let g x = sequence (x, newEmptyMVar)
   mapM (sequence . fmap (mapM g)) xs
 
 
-sendEnd :: [(BarLength, [(Config params a, MVar (Message a))])] -> IO ()
-sendEnd xs = do
+sendEnd :: [(BarLength, [(Config params a, MVar (Message a))])] -> TradeReaderIO ()
+sendEnd xs = liftIO $ do
   let g (_, mvar) = do
         putMVar mvar (Left ())
         void (takeMVar mvar)
@@ -200,11 +217,19 @@ sendEnd xs = do
 
 start ::
   (Show a, Read a, Fractional a, ToFileString params, Show params) =>
-  [(BarLength, [Config params a])] -> IO ()
+  [(BarLength, [Config params a])] -> TradeReaderIO ()
 start xs = do
   cs <- addMVars xs
+
+  cfg <- ask
+
+  mapM_ (liftIO . forkIO . runTradeReaderIO cfg . ticker) cs
+  {-
   mapM_ (forkIO . ticker) cs
+  -}
+
   -- wait16hours
+  
   waitNminute (4*60)
   sendEnd cs
   

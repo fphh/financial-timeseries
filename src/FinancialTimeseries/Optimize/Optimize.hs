@@ -31,8 +31,7 @@ newtype Metrics a = Metrics {
   } deriving (Show, Eq, Ord)
 
 data Config optParams price a = Config {
-  outputDirectory :: FilePath
-  , strategy :: [Strategy optParams price a]
+  strategy :: [Strategy optParams price a]
   , metrics :: Vec.Vector a -> Metrics a
   }
 
@@ -80,7 +79,7 @@ equalDistribution n pval (Long (TradeYield (Invested vs))) =
 optimize ::
   (Distributive price, Profit price, Fractional a, Real a, Floating a) =>
   Config optParams price a -> TimeseriesRaw price a -> [(optParams, Metrics a)]
-optimize (Config _ strgies metr) ts =
+optimize (Config strgies metr) ts =
   let ss = map (\stgy -> (parameters stgy, evalStrategy ts stgy)) strgies
 
       n = 10

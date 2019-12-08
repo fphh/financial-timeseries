@@ -3,6 +3,8 @@
 
 module FinancialTimeseries.Trade.Analysis where
 
+import Control.Monad.IO.Class (liftIO)
+
 import Data.Time (getCurrentTime)
 
 import Data.Distributive (Distributive)
@@ -25,6 +27,8 @@ import qualified FinancialTimeseries.Report.Standard as Standard
 import qualified FinancialTimeseries.Source.Binance.Type.BarLength as BarLength
 import qualified FinancialTimeseries.Source.Binance.Type.Symbol as Symbol
 
+import FinancialTimeseries.Trade.TradeReaderIO (TradeReaderIO, runTradeReaderIO, outputDirectory)
+
 import FinancialTimeseries.Type.Fraction (Fraction(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Strategy (Strategy(..))
@@ -37,8 +41,7 @@ import FinancialTimeseries.Util.ToFileString (ToFileString, toFileString)
 
 
 data Config params price a = Config {
-  outputDirectory :: FilePath
-  , barLength :: BarLength.BarLength
+  barLength :: BarLength.BarLength
   , fractions :: [Fraction a]
   , strategy :: Strategy params price a
   }
@@ -46,32 +49,34 @@ data Config params price a = Config {
 
 analyze ::
   (Length (TimeseriesRaw price a), Profit price, Distributive price, StripPrice price, Show a, Pretty a, Num a, Fractional a, Real a, E.PlotValue a, Pretty params, ToFileString params) =>
-  Config params price a -> Symbol.Symbol -> TimeseriesRaw price a -> IO ()
+  Config params price a -> Symbol.Symbol -> TimeseriesRaw price a -> TradeReaderIO ()
 analyze cfg sym s =  do
+  outDir <- outputDirectory
 
-  now <- getCurrentTime
-  repCfg <- HtmlReader.defaultConfig
-  mcCfg <- AMC.newMCConfig 100 100 (Equity 1000) (fractions cfg)
+  liftIO $ do
+    now <- getCurrentTime
+    repCfg <- HtmlReader.defaultConfig
+    mcCfg <- AMC.newMCConfig 100 100 (Equity 1000) (fractions cfg)
 
-  let config = Standard.Config {
-        Standard.now = now
-        , Standard.reportConfig = repCfg
-        , Standard.monteCarloConfig = mcCfg
-        , Standard.strategy = strategy cfg
-        }
+    let config = Standard.Config {
+          Standard.now = now
+          , Standard.reportConfig = repCfg
+          , Standard.monteCarloConfig = mcCfg
+          , Standard.strategy = strategy cfg
+          }
 
-      html = Standard.report config s
+        html = Standard.report config s
 
-      str = Pretty.renderHtml (Document.render html)
+        str = Pretty.renderHtml (Document.render html)
 
-      fileName = 
-        outputDirectory cfg
-        ++ "/" ++ show sym
-        ++ "-" ++ toFileString (barLength cfg)
-        ++ "-" ++ toFileString (strategy cfg)
-        ++ "-historic.html"
+        fileName = 
+          outDir
+          ++ "/" ++ show sym
+          ++ "-" ++ toFileString (barLength cfg)
+          ++ "-" ++ toFileString (strategy cfg)
+          ++ "-historic.html"
 
-  writeFile fileName str
+    writeFile fileName str
 
 
 optimize ::
@@ -79,22 +84,24 @@ optimize ::
   Optimize.Config params price a
   -> Symbol.Symbol
   -> TimeseriesRaw price a
-  -> IO (params, Optimize.Metrics a)
+  -> TradeReaderIO (params, Optimize.Metrics a)
 optimize cfg sym s = do
-  
-  repCfg <- HtmlReader.defaultConfig
+  outDir <- outputDirectory
 
-  let opts = Optimize.optimize cfg s
+  liftIO $ do
+    repCfg <- HtmlReader.defaultConfig
 
-      table = Table
-        "Ranked Optimization Parameters"
-        [CString "Metrics"]
-        (map (\(w, Optimize.Metrics y) -> Labeled (show w) [Cell y]) opts)
+    let opts = Optimize.optimize cfg s
 
-      best = last opts
-      --t :: H5.Html
-      t = HtmlReader.runHtmlReader repCfg (display [table])
+        table = Table
+          "Ranked Optimization Parameters"
+          [CString "Metrics"]
+          (map (\(w, Optimize.Metrics y) -> Labeled (show w) [Cell y]) opts)
 
-  writeFile (Optimize.outputDirectory cfg ++ "/" ++ show sym ++ "-optimize.html") (Pretty.renderHtml (Document.render t))
-  return best
+        best = last opts
+        --t :: H5.Html
+        t = HtmlReader.runHtmlReader repCfg (display [table])
+
+    writeFile (outDir ++ "/" ++ show sym ++ "-optimize.html") (Pretty.renderHtml (Document.render t))
+    return best
 
