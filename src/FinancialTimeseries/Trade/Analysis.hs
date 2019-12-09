@@ -36,7 +36,7 @@ import FinancialTimeseries.Type.Table (Table(..), Cell(..))
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), Length)
 import FinancialTimeseries.Type.Types (StripPrice, TimeseriesYield(..), ExchangeRate, Equity(..))
 
-import FinancialTimeseries.Util.Pretty (Pretty)
+import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 import FinancialTimeseries.Util.ToFileString (ToFileString, toFileString)
 
 
@@ -80,7 +80,7 @@ analyze cfg sym s =  do
 
 
 optimize ::
-  (StripPrice price, Distributive price, Profit price, Pretty a, Real a, Floating a, Show a, Show params) =>
+  (StripPrice price, Distributive price, Profit price, Pretty a, Real a, Floating a, Show a, Pretty params) =>
   Optimize.Config params price a
   -> Symbol.Symbol
   -> TimeseriesRaw price a
@@ -96,12 +96,14 @@ optimize cfg sym s = do
         table = Table
           "Ranked Optimization Parameters"
           [CString "Metrics"]
-          (map (\(w, Optimize.Metrics y) -> Labeled (show w) [Cell y]) opts)
+          (map (\(w, Optimize.Metrics _ y) -> Labeled (pretty w) [Cell y]) opts)
 
         best = last opts
-        --t :: H5.Html
+
         t = HtmlReader.runHtmlReader repCfg (display [table])
 
-    writeFile (outDir ++ "/" ++ show sym ++ "-optimize.html") (Pretty.renderHtml (Document.render t))
+        metrics = Optimize.name (snd best)
+
+    writeFile (outDir ++ "/" ++ show sym ++ "-optimized-by-" ++ metrics ++ ".html") (Pretty.renderHtml (Document.render t))
     return best
 

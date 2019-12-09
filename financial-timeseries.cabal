@@ -68,7 +68,6 @@ library
                    , FinancialTimeseries.Type.Timed
                    , FinancialTimeseries.Type.Timeseries
                    , FinancialTimeseries.Type.Types
-                   , FinancialTimeseries.Util.Directory
                    , FinancialTimeseries.Util.DistributivePair
                    , FinancialTimeseries.Util.Pretty
                    , FinancialTimeseries.Util.ToFileString

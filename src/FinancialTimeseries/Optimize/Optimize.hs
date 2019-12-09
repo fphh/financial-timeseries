@@ -21,30 +21,38 @@ import FinancialTimeseries.Algorithm.Evaluate (Profit, long)
 import FinancialTimeseries.Statistics.Statistics (tradeStatistics, trMeanYield, moments, sampleSize, yield)
 
 import FinancialTimeseries.Type.Long (Long(..))
-import FinancialTimeseries.Type.Strategy (Strategy(..))
-import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), slice)
+import qualified FinancialTimeseries.Type.Strategy as Strategy
+import FinancialTimeseries.Type.Strategy (Strategy(Strategy))
+import FinancialTimeseries.Type.Timeseries (TimeseriesRaw, slice)
 import FinancialTimeseries.Type.Types (TradeYield(..), Invested(..), partitionInvested)
 
 
-newtype Metrics a = Metrics {
-  unMetrics :: a
+data Metrics a = Metrics {
+  name :: String
+  , metrics :: a
   } deriving (Show, Eq, Ord)
 
 data Config optParams price a = Config {
   strategy :: [Strategy optParams price a]
-  , metrics :: Vec.Vector a -> Metrics a
+  , evaluationMetrics :: Vec.Vector a -> Metrics a
   }
 
 
 timeseriesYield :: (Real a, Floating a) => Vec.Vector a -> Metrics a
 timeseriesYield vs =
   let stats = tradeStatistics vs
-  in Metrics (trMeanYield (moments stats) ** fromIntegral (sampleSize stats))
+  in Metrics {
+    name = "timeseriesYield"
+    , metrics = trMeanYield (moments stats) ** fromIntegral (sampleSize stats)
+    }
   
 tradeMeanYield :: (Real a, Floating a) => Vec.Vector a -> Metrics a
 tradeMeanYield vs =
   let stats = tradeStatistics vs
-  in Metrics (trMeanYield (moments stats))
+  in Metrics {
+    name = "tradeMeanYield"
+    , metrics = trMeanYield (moments stats)
+    }
 
 evalStrategy ::
   (Distributive price, Profit price, Fractional a) =>
@@ -80,7 +88,7 @@ optimize ::
   (Distributive price, Profit price, Fractional a, Real a, Floating a) =>
   Config optParams price a -> TimeseriesRaw price a -> [(optParams, Metrics a)]
 optimize (Config strgies metr) ts =
-  let ss = map (\stgy -> (parameters stgy, evalStrategy ts stgy)) strgies
+  let ss = map (\stgy -> (Strategy.parameters stgy, evalStrategy ts stgy)) strgies
 
       n = 10
       pval = Types.mkPValue 0.05

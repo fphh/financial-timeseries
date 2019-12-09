@@ -10,7 +10,7 @@ import Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, takeMVar)
 
 import Control.Monad (void, join, liftM, liftM2)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Trans.Reader (ReaderT, ask)
+import Control.Monad.Trans.Reader (ReaderT, ask, mapReaderT)
 
 import Data.Time (UTCTime, getCurrentTime, diffUTCTime, formatTime, defaultTimeLocale, iso8601DateFormat)
 
@@ -87,15 +87,6 @@ trader mvar bl cfg = do
 
   filePref <- fileNamePrefix sym bl (strategy cfg)
   
-  {-
-  let sym = symbol cfg
-
-      fileNamePrefix = 
-        outputDirectory cfg
-        ++ "/" ++ show sym
-        ++ "-" ++ toFileString bl
-        ++ "-" ++ toFileString (strategy cfg)
--}
   let fileNameCsv = filePref ++ ".csv"
       fileNameParams = filePref ++ ".params"
 
@@ -106,9 +97,6 @@ trader mvar bl cfg = do
     Sys.hSetBuffering hd Sys.LineBuffering
     
     putStrLn ("Starting trader for " ++ fileNameCsv)
-
-
-
 
     let tsReq = (Klines.defaultQuery sym bl) {
           Klines.limit = Just (limit cfg + 100)
@@ -149,20 +137,16 @@ trader mvar bl cfg = do
 ticker ::
   (Show a, Read a, Fractional a, ToFileString params, Show params) =>
   (BarLength, [(Config params a,  MVar (Message a))]) -> TradeReaderIO ()
--- ticker = undefined
-
 ticker (bl, mcfgs) = do
   ts <- liftIO (nextTimeSlices bl)
-
-  cfg <- ask
 
   let finally mvar filePath = do
         print filePath
         putMVar mvar (Left ())
+        
+      g (c, mvar) = mapReaderT (flip forkFinally (finally mvar)) (trader mvar bl c)
 
-      g (c, mvar) = void (forkFinally (runTradeReaderIO cfg (trader mvar bl c)) (finally mvar))
-
-  mapM_ (liftIO . g) mcfgs
+  mapM_ g mcfgs
 
   let f (cfg, mvar) = liftIO $ do
         let sym = symbol cfg
@@ -221,17 +205,6 @@ start ::
 start xs = do
   cs <- addMVars xs
 
-  cfg <- ask
-
-  mapM_ (liftIO . forkIO . runTradeReaderIO cfg . ticker) cs
-  {-
-  mapM_ (forkIO . ticker) cs
-  -}
-
-  -- wait16hours
-  
+  mapM_ (mapReaderT forkIO . ticker) cs
   waitNminute (4*60)
   sendEnd cs
-  
-  -- threadDelay (1000*1000*60*60*16) -- 16 hours
-  -- threadDelay (1000*1000*60) -- 16 hours
