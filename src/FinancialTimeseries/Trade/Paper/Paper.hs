@@ -144,12 +144,7 @@ ticker ::
 ticker (bl, mcfgs) = do
   ts <- liftIO (nextTimeSlices bl)
 
-  let -- finally :: _
-      finally mvar filePath = do
-        print filePath
-        putMVar mvar End
-        
-      g (c, mvar) = mapReaderT (flip forkFinally (finally mvar)) (trader mvar bl c)
+  let g (c, mvar) = mapReaderT forkIO (trader mvar bl c)
 
   mapM_ g mcfgs
 
