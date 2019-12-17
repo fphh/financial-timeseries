@@ -49,7 +49,7 @@ data Config params a = Config {
 -- type Message a = Either () (ExchangeRate (UTCTime, (Bid a, Ask a)))
 
 data Message a =
-  Message (ExchangeRate (UTCTime, (Bid a, Ask a)))
+  NewData (ExchangeRate (UTCTime, (Bid a, Ask a)))
   | End
 
 refreshAccount ::
@@ -129,16 +129,11 @@ trader mvar bl cfg = do
 
           loop newAcnt
 
-        -- end = const (return ())
-
         loop acnt = takeMVar mvar >>=
           \x -> case x of
                   End -> return ()
-                  Message y -> newData acnt y
+                  NewData y -> newData acnt y
 
-          -- either end (newData acnt)
-
-        
     loop (account cfg)
 
 
@@ -149,7 +144,8 @@ ticker ::
 ticker (bl, mcfgs) = do
   ts <- liftIO (nextTimeSlices bl)
 
-  let finally mvar filePath = do
+  let -- finally :: _
+      finally mvar filePath = do
         print filePath
         putMVar mvar End
         
@@ -165,7 +161,7 @@ ticker (bl, mcfgs) = do
 
         let bidAsk = fmap (fmap byQuantity) (OrderBook.exchangeRateByQuantity 10 ob)
         
-        putMVar mvar (Message bidAsk)
+        putMVar mvar (NewData bidAsk)
 
       fs = map (forkIO . f) mcfgs
  
