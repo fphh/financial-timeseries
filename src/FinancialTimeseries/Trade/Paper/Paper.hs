@@ -5,14 +5,14 @@ module FinancialTimeseries.Trade.Paper.Paper where
 
 import qualified System.IO as Sys
 
-import Control.Concurrent (forkIO, forkFinally, threadDelay)
+import Control.Concurrent (forkIO, threadDelay)
 import Control.Concurrent.MVar (MVar, newEmptyMVar, putMVar, takeMVar)
 
-import Control.Monad (void, join, liftM, liftM2)
+import Control.Monad (void)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Trans.Reader (ReaderT, ask, mapReaderT)
+import Control.Monad.Trans.Reader (mapReaderT)
 
-import Data.Time (UTCTime, getCurrentTime, diffUTCTime, formatTime, defaultTimeLocale, iso8601DateFormat)
+import Data.Time (UTCTime, getCurrentTime, diffUTCTime)
 
 import qualified FinancialTimeseries.Source.Binance.Klines as Klines
 import qualified FinancialTimeseries.Source.Binance.OrderBook as OrderBook
@@ -24,8 +24,7 @@ import FinancialTimeseries.Source.Binance.Type.Symbol (Symbol)
 
 import FinancialTimeseries.Trade.Account (Account(..))
 import FinancialTimeseries.Trade.LoggerData (LoggerData(..), logger)
-import FinancialTimeseries.Trade.TradeReaderIO (TradeReaderIO, runTradeReaderIO, fileNamePrefix)
-import qualified FinancialTimeseries.Trade.TradeReaderIO as TRIO
+import FinancialTimeseries.Trade.TradeReaderIO (TradeReaderIO, fileNamePrefix)
 import FinancialTimeseries.Type.ByQuantity (ByQuantity(..))
 import FinancialTimeseries.Type.Fraction (Fraction(..))
 import FinancialTimeseries.Type.Signal (Signal(..), lastSignal)
@@ -33,7 +32,7 @@ import FinancialTimeseries.Type.Strategy (Strategy(..))
 import FinancialTimeseries.Type.Types (StripPrice, ExchangeRate(..))
 import qualified FinancialTimeseries.Type.Timeseries as TS
 
-import FinancialTimeseries.Util.ToFileString (ToFileString, toFileString)
+import FinancialTimeseries.Util.ToFileString (ToFileString)
 
 
 
@@ -209,6 +208,7 @@ start xs = do
   waitNminute (4*60)
   sendEnd cs
 
+{-
   let g bl cfg = fileNamePrefix (symbol cfg) bl (strategy cfg)
       f (bl, cs) = sequence (map (g bl) cs)
 
@@ -218,4 +218,4 @@ start xs = do
     putStrLn "after sendEnd"
     print fs
 
-  
+ -}
