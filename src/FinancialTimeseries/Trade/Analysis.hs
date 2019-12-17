@@ -25,9 +25,10 @@ import FinancialTimeseries.Render.Render (display)
 import qualified FinancialTimeseries.Report.Standard as Standard
 
 import qualified FinancialTimeseries.Source.Binance.Type.BarLength as BarLength
+import FinancialTimeseries.Source.Binance.Type.BarLength (BarLength)
 import qualified FinancialTimeseries.Source.Binance.Type.Symbol as Symbol
 
-import FinancialTimeseries.Trade.TradeReaderIO (TradeReaderIO, runTradeReaderIO, outputDirectory)
+import FinancialTimeseries.Trade.TradeReaderIO (TradeReaderIO, runTradeReaderIO, outputDirectory, fileNamePrefix)
 
 import FinancialTimeseries.Type.Fraction (Fraction(..))
 import FinancialTimeseries.Type.Labeled (Labeled(..))
@@ -41,7 +42,7 @@ import FinancialTimeseries.Util.ToFileString (ToFileString, toFileString)
 
 
 data Config params price a = Config {
-  barLength :: BarLength.BarLength
+  barLength :: BarLength
   , fractions :: [Fraction a]
   , strategy :: Strategy params price a
   }

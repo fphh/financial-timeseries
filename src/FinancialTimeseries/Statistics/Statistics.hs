@@ -16,15 +16,15 @@ import FinancialTimeseries.Type.Table (Table(..), Cell(..), Row, row)
 
 
 data Quantiles a = Quantiles {
-  q05 :: a
-  , q25 :: a
-  , q50 :: a
-  , q75 :: a
-  , q95 :: a
+  q05 :: Maybe a
+  , q25 :: Maybe a
+  , q50 :: Maybe a
+  , q75 :: Maybe a
+  , q95 :: Maybe a
   } deriving (Show)
 
 instance Row Quantiles where
-  row (Quantiles a b c d e) = map Cell [a, b, c, d, e]
+  row (Quantiles a b c d e) = map (CString . maybe "n/a" show) [a, b, c, d, e]
 
 data Probabilities a = Probabilities {
   p0'50 :: a
@@ -94,7 +94,7 @@ timeseriesMoments sorted =
 
      
 stats2list ::
-  (Row moments) =>
+  (Row moments, Show a) =>
   [Labeled params (Stats moments a)] -> [Table params a]
 stats2list xs =
   let qheaders = map CString ["Q05", "Q25", "Q50", "Q75", "Q95", "Sample Size"]
@@ -117,7 +117,7 @@ statisticsWithMoments mms vs =
   let noe = fromIntegral (Vec.length vs)
       sorted = Vec.modify Merge.sort vs
 
-      quart s = sorted Vec.! (round (s * noe :: Double))
+      quart s = sorted Vec.!? (round (s * noe :: Double))
       q = Quantiles {
         q05 = quart 0.05
         , q25 = quart 0.25

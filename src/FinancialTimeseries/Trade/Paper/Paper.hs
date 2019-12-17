@@ -175,7 +175,7 @@ wait16hours :: IO ()
 wait16hours = threadDelay (1000*1000*60*60*16)
 
 waitNminute :: Int -> TradeReaderIO ()
-waitNminute n = liftIO (threadDelay (1000*1000*60*n))
+waitNminute n = liftIO (threadDelay (1000*1000*60*n + 1000)) -- adding some micro seconds
 
 wait1minute :: TradeReaderIO ()
 wait1minute = waitNminute 1
@@ -200,12 +200,12 @@ sendEnd xs = liftIO $ do
 
 start ::
   (Show a, Read a, Fractional a, ToFileString params, Show params) =>
-  [(BarLength, [Config params a])] -> TradeReaderIO ()
-start xs = do
+  Int -> [(BarLength, [Config params a])] -> TradeReaderIO ()
+start min xs = do
   cs <- addMVars xs
 
   mapM_ (mapReaderT forkIO . ticker) cs
-  waitNminute (4*60)
+  waitNminute min
   sendEnd cs
 
 {-

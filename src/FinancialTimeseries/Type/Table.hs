@@ -29,4 +29,4 @@ data Table params a = Table {
 
 
 class Row a where
-  row :: a x -> [Cell x]
+  row :: (Show x) => a x -> [Cell x]

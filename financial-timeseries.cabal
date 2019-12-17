@@ -52,6 +52,7 @@ library
                    , FinancialTimeseries.Trade.Account
                    , FinancialTimeseries.Trade.LoggerData
                    , FinancialTimeseries.Trade.Paper.Paper
+                   , FinancialTimeseries.Trade.SessionReport
                    , FinancialTimeseries.Trade.TradeReaderIO
                    , FinancialTimeseries.Type.ByQuantity
                    , FinancialTimeseries.Type.Chart
