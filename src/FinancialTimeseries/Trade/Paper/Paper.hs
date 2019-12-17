@@ -46,6 +46,12 @@ data Config params a = Config {
   , strategy :: Strategy params ExchangeRate a
   }
 
+-- type Message a = Either () (ExchangeRate (UTCTime, (Bid a, Ask a)))
+
+data Message a =
+  Message (ExchangeRate (UTCTime, (Bid a, Ask a)))
+  | End
+
 refreshAccount ::
   (Num a, Fractional a, TS.Length (TS.TimeseriesRaw price a), Functor price, StripPrice price) =>
   Fraction a
@@ -76,12 +82,10 @@ refreshAccount (Fraction f) (Strategy _ ps stgy) bidAsk acnt@(Account bc qc) ts 
 --       Sell -> Account (bc + qc/prc) 0
 
 
-type Message a = Either () (ExchangeRate (UTCTime, (Bid a, Ask a)))
-
 
 trader ::
   (Show a, Read a, Fractional a, ToFileString params, Show params) =>
-  MVar (Message a) -> BarLength -> Config params a -> TradeReaderIO FilePath
+  MVar (Message a) -> BarLength -> Config params a -> TradeReaderIO ()
 trader mvar bl cfg = do
   let sym = symbol cfg
 
@@ -125,9 +129,14 @@ trader mvar bl cfg = do
 
           loop newAcnt
 
-        end = const (return fileNameCsv)
+        -- end = const (return ())
 
-        loop acnt = takeMVar mvar >>= either end (newData acnt)
+        loop acnt = takeMVar mvar >>=
+          \x -> case x of
+                  End -> return ()
+                  Message y -> newData acnt y
+
+          -- either end (newData acnt)
 
         
     loop (account cfg)
@@ -142,7 +151,7 @@ ticker (bl, mcfgs) = do
 
   let finally mvar filePath = do
         print filePath
-        putMVar mvar (Left ())
+        putMVar mvar End
         
       g (c, mvar) = mapReaderT (flip forkFinally (finally mvar)) (trader mvar bl c)
 
@@ -156,7 +165,7 @@ ticker (bl, mcfgs) = do
 
         let bidAsk = fmap (fmap byQuantity) (OrderBook.exchangeRateByQuantity 10 ob)
         
-        putMVar mvar (Right bidAsk)
+        putMVar mvar (Message bidAsk)
 
       fs = map (forkIO . f) mcfgs
  
@@ -193,7 +202,7 @@ addMVars xs = liftIO $ do
 sendEnd :: [(BarLength, [(Config params a, MVar (Message a))])] -> TradeReaderIO ()
 sendEnd xs = liftIO $ do
   let g (_, mvar) = do
-        putMVar mvar (Left ())
+        putMVar mvar End
         void (takeMVar mvar)
         
   mapM_ (sequence . fmap (mapM g)) xs  
@@ -208,3 +217,14 @@ start xs = do
   mapM_ (mapReaderT forkIO . ticker) cs
   waitNminute (4*60)
   sendEnd cs
+
+  let g bl cfg = fileNamePrefix (symbol cfg) bl (strategy cfg)
+      f (bl, cs) = sequence (map (g bl) cs)
+
+  fs <- sequence (map f xs)
+
+  liftIO $ do
+    putStrLn "after sendEnd"
+    print fs
+
+  
