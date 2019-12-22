@@ -21,7 +21,7 @@ import qualified Statistics.Sample.Histogram as Histo
 
 import qualified FinancialTimeseries.Algorithm.MonteCarlo as AMC
 import FinancialTimeseries.Algorithm.Evaluate (Profit, long, evaluate, evaluateFraction)
-import FinancialTimeseries.Render.Chart (chart)
+import FinancialTimeseries.Render.Chart (chartWithEquity)
 import qualified FinancialTimeseries.Render.HtmlReader as HtmlReader -- (Config, runHtmlReader)
 import FinancialTimeseries.Render.Render (display)
 import FinancialTimeseries.Render.Statement (statement, currentTime)
@@ -68,7 +68,7 @@ report cfg ts =
 
       tsCharts =
         let convert = Equity . snd . stripPrice
-            k = fmap (flip chart [t]) . distribute
+            k = fmap (flip chartWithEquity [t]) . distribute
         in fmap (bimap k k . distributePair) (evaluate (convert (first ts)) lg)
 
       histogram =

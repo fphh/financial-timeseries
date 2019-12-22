@@ -63,6 +63,9 @@ refreshAccount (Fraction f) (Strategy _ ps stgy) bidAsk acnt@(Account bc qc) ts 
   let ms = stgy ps ts
       signal = lastSignal ms
 
+      -- buy  (ExchangeRate (Bid prc, _)) = Account (bc - f*bc) (qc + f*bc*prc)
+      -- sell (ExchangeRate (_, Ask prc)) = Account (bc + qc/prc) 0
+
       buy  (ExchangeRate (Bid prc, _)) = Account (bc - f*bc) (qc + f*bc*prc)
       sell (ExchangeRate (_, Ask prc)) = Account (bc + qc/prc) 0
 
@@ -71,9 +74,12 @@ refreshAccount (Fraction f) (Strategy _ ps stgy) bidAsk acnt@(Account bc qc) ts 
        -- DisInvest -> sell bidAsk
 
        
-       Invest -> sell bidAsk
-       DisInvest -> buy bidAsk
-              
+       -- Invest -> sell bidAsk
+       -- DisInvest -> buy bidAsk
+       
+       Invest -> buy bidAsk
+       DisInvest -> sell bidAsk
+             
        None -> acnt
 
 

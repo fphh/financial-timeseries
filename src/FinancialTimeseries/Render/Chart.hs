@@ -37,7 +37,7 @@ import qualified Diagrams.TwoD as D2
 import Graphics.Svg.Core (renderBS)
 
 import FinancialTimeseries.Render.HtmlReader (HtmlReader, Config(..))
-import FinancialTimeseries.Type.Chart (ParaCurve(..), Chart(..), LChart)
+import FinancialTimeseries.Type.Chart (ParaCurve(..), Chart(..), LChart, add)
 import FinancialTimeseries.Type.Labeled (Labeled(..))
 import FinancialTimeseries.Type.Segment (Segment(..), HalfSegment(..))
 import FinancialTimeseries.Type.Timeseries (TimeseriesRaw(..), Timeseries(..))
@@ -45,11 +45,11 @@ import FinancialTimeseries.Type.Types (StripPrice, stripPrice, Equity(..))
 import FinancialTimeseries.Util.Pretty (Pretty, pretty)
 
 
+
 chart ::
-  forall a price.
   (StripPrice price, Real a) =>
-  Equity (Vector (UTCTime, a)) -> [Timeseries price a] -> LChart String UTCTime Double
-chart res vs =
+  [Timeseries price a] -> LChart String UTCTime Double
+chart vs =
   let f (Timeseries (TimeseriesRaw nam tsVec) segs halfSeg as) =
         let ts = Vec.map (fmap realToFrac) (stripPrice tsVec)
             (_, mi) = Vec.minimumBy (compare `on` snd) ts
@@ -71,8 +71,15 @@ chart res vs =
             zs = map (Vec.map (fmap realToFrac)) (map g segs ++ hs)
         in [Labeled nam [ts], Labeled (nam ++ " (inv. / not inv.)") zs]
            ++ map (fmap (:[])) as
-  in Chart "Timeseries" (concatMap f vs ++ [Labeled "Equity" [Vec.map (fmap realToFrac) (unEquity res)]])
+  in Chart "Timeseries" (concatMap f vs)
 
+
+chartWithEquity ::
+  (StripPrice price, Real a) =>
+  Equity (Vector (UTCTime, a)) -> [Timeseries price a] -> LChart String UTCTime Double
+chartWithEquity eqty vs =
+  let leqty = Labeled "Equity" [Vec.map (fmap realToFrac) (unEquity eqty)]
+  in add leqty (chart vs)
 
 
 class PlotLine a where

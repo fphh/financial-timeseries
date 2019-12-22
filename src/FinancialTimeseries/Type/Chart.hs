@@ -23,6 +23,11 @@ data Chart params curve = Chart {
   } deriving (Show)
 
 
+add :: Labeled params curve -> Chart params curve -> Chart params curve
+add lbld c = c {
+  curves = curves c ++ [lbld]
+  }
+
 type LChart params x a = Chart params [Vector (x, a)]
 
 type LPChart params x a = Chart params (ParaCurve Vector x a)
